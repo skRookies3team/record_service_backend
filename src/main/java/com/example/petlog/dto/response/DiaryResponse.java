@@ -25,11 +25,13 @@ public class DiaryResponse {
     private Visibility visibility;
     private String weather;
     private String mood;
+    private Boolean isAiGen; // AI 여부 확인용
     private LocalDateTime createdAt;
+    private LocalDateTime updatedAt;
 
     private List<Image> images;
 
-    // Entity -> DTO 변환 (메서드명 변경: from -> fromEntity)
+    // [핵심] Entity -> DTO 변환 로직 (Service에서 호출)
     public static DiaryResponse fromEntity(Diary diary) {
         return DiaryResponse.builder()
                 .diaryId(diary.getDiaryId())
@@ -39,7 +41,9 @@ public class DiaryResponse {
                 .visibility(diary.getVisibility())
                 .weather(diary.getWeather())
                 .mood(diary.getMood())
+                .isAiGen(diary.getIsAiGen())
                 .createdAt(diary.getCreatedAt())
+                .updatedAt(diary.getUpdatedAt())
                 .images(diary.getImages().stream()
                         .map(Image::fromEntity)
                         .collect(Collectors.toList()))
