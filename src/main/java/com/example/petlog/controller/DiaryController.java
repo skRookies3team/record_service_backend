@@ -49,8 +49,8 @@ public class DiaryController {
         return ResponseEntity.ok(diaryService.getDiary(diaryId));
     }
 
-    // 수정 (PUT)
-    @PutMapping("/{diaryId}")
+    // 수정 (PATCH)
+    @PatchMapping("/{diaryId}")
     public ResponseEntity<Void> updateDiary(@PathVariable Long diaryId,
                                             @RequestBody DiaryRequest.Update request) {
         diaryService.updateDiary(diaryId, request);

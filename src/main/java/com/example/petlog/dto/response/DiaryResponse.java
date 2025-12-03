@@ -27,11 +27,10 @@ public class DiaryResponse {
     private String mood;
     private LocalDateTime createdAt;
 
-    // 내부 클래스 Image 리스트 사용
     private List<Image> images;
 
-    // Entity -> DTO 변환 메서드
-    public static DiaryResponse from(Diary diary) {
+    // Entity -> DTO 변환 (메서드명 변경: from -> fromEntity)
+    public static DiaryResponse fromEntity(Diary diary) {
         return DiaryResponse.builder()
                 .diaryId(diary.getDiaryId())
                 .userId(diary.getUserId())
@@ -42,7 +41,7 @@ public class DiaryResponse {
                 .mood(diary.getMood())
                 .createdAt(diary.getCreatedAt())
                 .images(diary.getImages().stream()
-                        .map(Image::from)
+                        .map(Image::fromEntity)
                         .collect(Collectors.toList()))
                 .build();
     }
@@ -59,8 +58,8 @@ public class DiaryResponse {
         private Integer imgOrder;
         private Boolean mainImage;
 
-        // Entity -> DTO 변환 메서드
-        public static Image from(DiaryImage image) {
+        // Entity -> DTO 변환
+        public static Image fromEntity(DiaryImage image) {
             return Image.builder()
                     .imageId(image.getImageId())
                     .imageUrl(image.getImageUrl())
