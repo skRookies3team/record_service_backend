@@ -4,6 +4,7 @@ import org.springframework.context.annotation.Profile;
 import org.springframework.stereotype.Component;
 
 import java.util.List;
+import java.util.stream.Collectors;
 
 // [수정] 빈 이름을 명시적으로 지정
 @Profile({"test", "local-test"}) // 'local-test' 프로필이 활성화될 때만 이 빈을 로드함
@@ -17,6 +18,10 @@ public class MockStorageServiceClient implements StorageServiceClient {
         System.out.println("--- [MOCK CALL SUCCESS] ---");
         System.out.println("StorageServiceClient: 외부 보관함 서비스 호출 스킵됨 (local-test 프로필 활성)");
         System.out.println("저장 요청 사진 수: " + photos.size() + "장");
+        System.out.println("---------------------------");
+
+        // [추가] URL 정보 로깅
+        System.out.println("전송 URL: " + photos.stream().map(PhotoRequest::imageUrl).collect(Collectors.joining(", ")));
         System.out.println("---------------------------");
     }
 }

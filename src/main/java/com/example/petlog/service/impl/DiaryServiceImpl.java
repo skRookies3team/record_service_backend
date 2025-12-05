@@ -3,17 +3,15 @@ package com.example.petlog.service.impl;
 import com.example.petlog.client.PetServiceClient;
 import com.example.petlog.client.StorageServiceClient;
 import com.example.petlog.client.UserServiceClient;
+import com.example.petlog.entity.DiaryImage;
 import com.example.petlog.entity.ImageSource;
 import com.example.petlog.dto.request.DiaryRequest;
 import com.example.petlog.dto.response.DiaryResponse;
 import com.example.petlog.entity.Diary;
-import com.example.petlog.entity.PhotoArchive;
 import com.example.petlog.exception.EntityNotFoundException;
 import com.example.petlog.exception.ErrorCode;
 import com.example.petlog.repository.DiaryRepository;
-import com.example.petlog.repository.PhotoArchiveRepository;
 import com.example.petlog.service.DiaryService;
-import com.example.petlog.service.PhotoArchiveService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Qualifier;
@@ -30,8 +28,6 @@ import java.util.stream.Collectors;
 public class DiaryServiceImpl implements DiaryService {
 
     private final DiaryRepository diaryRepository;
-    private final PhotoArchiveService photoArchiveService;
-    private final PhotoArchiveRepository photoArchiveRepository;
 
     // [수정] MockStorageServiceClient 이름을 가진 빈을 주입하도록 명시
     // Mock이 로드되지 않는 환경에서는 Feign Client가 주입됩니다.
@@ -60,30 +56,23 @@ public class DiaryServiceImpl implements DiaryService {
         Diary savedDiary = diaryRepository.save(diary);
 
         // 4. 사진 보관함 처리 로직
-        List<PhotoArchive> archives = request.toPhotoArchiveEntities();
-        if (!archives.isEmpty()) {
-            // 4-1. 내 서비스의 PhotoArchive에는 무조건 저장
-            photoArchiveService.saveArchives(archives);
+        List<DiaryImage> images = diary.getImages();
 
-            // 4-2. 외부 보관함 서비스로 전송할 사진 선별 (GALLERY 출처만)
-            List<StorageServiceClient.PhotoRequest> newPhotos = archives.stream()
-                    .filter(archive -> archive.getSource() == ImageSource.GALLERY)
-                    .map(archive -> new StorageServiceClient.PhotoRequest(
-                            archive.getUserId(),
-                            archive.getImageUrl()
+        if (!images.isEmpty()) {
+            // [핵심] 4-1. 외부 보관함 서비스로 전송할 사진 선별 (GALLERY 출처만)
+            List<StorageServiceClient.PhotoRequest> newPhotos = images.stream()
+                    .filter(img -> img.getSource() == ImageSource.GALLERY) // 갤러리에서 온 것만 필터링
+                    .map(img -> new StorageServiceClient.PhotoRequest(
+                            img.getUserId(),
+                            img.getImageUrl()
                     ))
                     .collect(Collectors.toList());
 
-            // 4-3. 선별된 사진만 외부 서비스로 전송
+            // 3-2. 선별된 사진만 외부 서비스로 전송
             if (!newPhotos.isEmpty()) {
                 try {
-                    // [수정] 전송될 URL 목록을 로그에 추가
-                    String sentUrls = newPhotos.stream()
-                            .map(StorageServiceClient.PhotoRequest::imageUrl)
-                            .collect(Collectors.joining(", "));
-
                     storageServiceClient.savePhotos(newPhotos);
-                    log.info("외부 보관함 서비스에 새 사진 {}장 전송 완료. URL: [{}]", newPhotos.size(), sentUrls);
+                    log.info("외부 보관함 서비스에 새 사진 {}장 전송 완료. URL: [{}]", newPhotos.size(), newPhotos.stream().map(StorageServiceClient.PhotoRequest::imageUrl).collect(Collectors.joining(", ")));
                 } catch (Exception e) {
                     log.warn("외부 보관함 서비스 전송 실패: {}", e.getMessage());
                 }
@@ -122,7 +111,7 @@ public class DiaryServiceImpl implements DiaryService {
         Diary diary = diaryRepository.findById(diaryId)
                 .orElseThrow(() -> new EntityNotFoundException(ErrorCode.DIARY_NOT_FOUND));
 
-        // 다이어리 삭제 (PhotoArchive는 유지됨)
+        // DiaryImage는 Cascade에 의해 함께 삭제됩니다.
         diaryRepository.delete(diary);
     }
 }
