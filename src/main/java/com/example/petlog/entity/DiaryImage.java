@@ -24,6 +24,10 @@ public class DiaryImage {
     @JoinColumn(name = "diary_id", nullable = false)
     private Diary diary;
 
+    // [추가] 사진이 어느 사용자에게 귀속되는지 (보관함 역할)
+    @Column(nullable = false)
+    private Long userId;
+
     // 이미지 경로 - 필수값
     @Column(nullable = false)
     private String imageUrl;
@@ -35,6 +39,11 @@ public class DiaryImage {
     // 대표 이미지 여부 - 필수값
     @Column(nullable = false)
     private Boolean mainImage;
+
+    // [추가] 이미지 출처 (GALLERY, ARCHIVE)
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false)
+    private ImageSource source;
 
     // 생성일
     @CreationTimestamp
