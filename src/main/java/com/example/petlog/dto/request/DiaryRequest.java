@@ -4,6 +4,7 @@ import com.example.petlog.entity.Diary;
 import com.example.petlog.entity.DiaryImage;
 import com.example.petlog.entity.ImageSource;
 import com.example.petlog.entity.Visibility;
+import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.NotNull;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -21,6 +22,7 @@ public class DiaryRequest {
     @Builder
     @NoArgsConstructor
     @AllArgsConstructor
+    @Schema(name = "DiaryCreateRequest")
     public static class Create {
 
         @NotNull

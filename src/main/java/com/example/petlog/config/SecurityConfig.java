@@ -11,11 +11,15 @@ import org.springframework.security.web.SecurityFilterChain;
 @EnableWebSecurity
 public class SecurityConfig {
 
+
+
     @Bean
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
         http
                 // 1. CSRF 해제
-                .csrf(AbstractHttpConfigurer::disable)
+               .csrf(csrf -> csrf.disable())
+                .cors(cors -> cors.disable())
+
 
                 // 2. Form 로그인, Basic 인증 해제 (JWT)
                 .formLogin(AbstractHttpConfigurer::disable)
@@ -25,6 +29,8 @@ public class SecurityConfig {
                 .authorizeHttpRequests(auth -> auth
                         // Swagger 관련 경로 모두 허용 (로그인 없이 접속 가능)
                         .requestMatchers(
+                                "/swagger",
+                                "/swagger/",
                                 "/v3/api-docs/**",
                                 "/swagger-ui/**",
                                 "/swagger-ui.html"

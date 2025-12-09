@@ -3,6 +3,7 @@ package com.example.petlog.dto.request;
 import com.example.petlog.entity.Recap;
 import com.example.petlog.entity.RecapHighlight;
 import com.example.petlog.entity.RecapStatus;
+import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.NotNull;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -19,6 +20,7 @@ public class RecapRequest {
     @Builder
     @NoArgsConstructor
     @AllArgsConstructor
+    @Schema(name = "RecapCreateRequest")
     public static class Create {
         @NotNull
         private Long petId;
