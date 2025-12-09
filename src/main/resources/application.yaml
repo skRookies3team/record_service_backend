@@ -49,6 +49,13 @@ external:
   storage-service:
     url: ${STORAGE_SERVICE_URL:http://localhost:8084}
 
+# [수정] springdoc 설정을 default 프로필 영역으로 이동
+springdoc:
+  api-docs:
+    path: "${SWAGGER_DOCS}"
+  swagger-ui:
+    path: "${SWAGGER_UI}"
+
 ---
 # local-test 프로필 설정 시작 (새로운 YAML 문서)
 spring:
@@ -61,9 +68,3 @@ spring:
         config:
           storage-service: # 특정 Feign Client 설정
             enabled: false # [최종 해결책] Feign Client 빈 생성을 명시적으로 비활성화
-
-springdoc:
-  api-docs:
-    path: "${SWAGGER_DOCS}"
-  swagger-ui:
-    path: "${SWAGGER_UI}"
