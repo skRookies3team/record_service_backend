@@ -3,6 +3,7 @@ package com.petlog.record.service.impl;
 import com.petlog.record.dto.request.DiaryStyleRequest;
 import com.petlog.record.dto.response.DiaryStyleResponse;
 import com.petlog.record.entity.DiaryStyle;
+import com.petlog.record.exception.ErrorCode;
 import com.petlog.record.exception.ResourceNotFoundException;
 import com.petlog.record.exception.UnauthorizedException;
 import com.petlog.record.repository.DiaryStyleRepository;
@@ -62,7 +63,8 @@ public class DiaryStyleServiceImpl implements DiaryStyleService {
     @Transactional // 쓰기 트랜잭션 (데이터 수정 가능)
     public DiaryStyleResponse updateStyle(Long styleId, DiaryStyleRequest request, Long userId) {
         DiaryStyle style = diaryStyleRepository.findById(styleId)
-                .orElseThrow(() -> new ResourceNotFoundException("Style not found"));
+                // [수정] ResourceNotFoundException에 ErrorCode를 함께 전달
+                .orElseThrow(() -> new ResourceNotFoundException(ErrorCode.DIARY_NOT_FOUND, "Style not found"));
 
         // 권한 확인
         if (!style.getUserId().equals(userId)) {

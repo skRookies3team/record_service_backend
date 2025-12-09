@@ -1,10 +1,7 @@
 package com.petlog.record.exception.advice;
 
 
-import com.petlog.record.exception.BusinessException;
-import com.petlog.record.exception.ErrorCode;
-import com.petlog.record.exception.EntityNotFoundException;
-import com.petlog.record.exception.ValidationException;
+import com.petlog.record.exception.*;
 
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
@@ -12,6 +9,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import com.petlog.record.exception.UnauthorizedException; // [추가]
 
 import java.nio.file.AccessDeniedException;
 import java.time.LocalDateTime;
@@ -99,6 +97,28 @@ public class GlobalExceptionHandler {
     }
 
     /**
+     * [추가] 리소스 없음 예외 처리 (ResourceNotFoundException)
+     */
+    @ExceptionHandler(ResourceNotFoundException.class)
+    public ResponseEntity<ErrorResponse> handleResourceNotFoundException(ResourceNotFoundException e) {
+        log.warn("Resource not found: {}", e.getMessage());
+
+        ErrorResponse errorResponse = ErrorResponse.builder()
+                .success(false)
+                .error(ErrorResponse.ErrorDetail.builder()
+                        // [수정] BIZ_001이 아니라 상수 이름으로 접근해야 합니다.
+                        .code(ErrorCode.BUSINESS_RULE_VIOLATION.getCode()) // 비즈니스 에러 코드로 처리
+                        .message(e.getMessage())
+                        .detail(null)
+                        .build())
+                .timestamp(LocalDateTime.now())
+                .build();
+
+        // 404 NOT FOUND 반환
+        return ResponseEntity.status(HttpStatus.NOT_FOUND).body(errorResponse);
+    }
+
+    /**
      * 엔티티 없음 예외 처리
      */
     @ExceptionHandler(EntityNotFoundException.class)
@@ -116,6 +136,27 @@ public class GlobalExceptionHandler {
                 .build();
 
         return ResponseEntity.status(HttpStatus.NOT_FOUND).body(errorResponse);
+    }
+
+    /**
+     * [추가] 권한 없음 예외 처리 (UnauthorizedException 대응)
+     */
+    @ExceptionHandler(UnauthorizedException.class)
+    public ResponseEntity<ErrorResponse> handleUnauthorizedException(UnauthorizedException e) {
+        log.warn("Unauthorized access: {}", e.getMessage());
+
+        ErrorResponse errorResponse = ErrorResponse.builder()
+                .success(false)
+                .error(ErrorResponse.ErrorDetail.builder()
+                        // 커스텀 예외는 ErrorCode가 없을 수 있으므로 하드코딩 처리 또는 BIZ_002 사용
+                        .code(ErrorCode.AUTH_ACCESS_DENIED.getCode())
+                        .message(e.getMessage()) // "Not authorized" 메시지 사용
+                        .build())
+                .timestamp(LocalDateTime.now())
+                .build();
+
+        // 403 FORBIDDEN 반환
+        return ResponseEntity.status(HttpStatus.FORBIDDEN).body(errorResponse);
     }
 
     /**
