@@ -1,17 +1,19 @@
 version: '3.8'
 
 services:
-  # PostgreSQL
+  # PostgreSQL 컨테이너
   postgres:
     image: postgres:15-alpine
-    container_name: petlog_pg
+    container_name: petlog_pg_master # 마스터 이름으로 명확히 구분
     restart: always
     ports:
       - "5432:5432"
     environment:
-      POSTGRES_USER: ${DB_USERNAME}
-      POSTGRES_PASSWORD: ${DB_PASSWORD}
-      POSTGRES_DB: diary_db
+      POSTGRES_USER: postgres       # DB 접속 사용자 통일
+      POSTGRES_PASSWORD: 1234       # DB 접속 비밀번호 통일
+      # [핵심] 쉼표로 분리하여 필요한 모든 DB를 초기화 시 생성
+      POSTGRES_MULTIPLE_DATABASES: diary_db, user_db
+      POSTGRES_DB: postgres         # 기본 관리 DB는 'postgres'로 설정하는 것이 안전
     volumes:
       - pg_data:/var/lib/postgresql/data
 
