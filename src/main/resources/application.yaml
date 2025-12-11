@@ -5,6 +5,14 @@ spring:
   application:
     name: petlog
 
+  # [중요] Spring AI 설정 경로 (이전 openai.api.key 에서 변경됨)
+  ai:
+    openai:
+      api-key: ${OPENAI_API_KEY}      # .env 파일의 변수 값 매핑
+      chat:
+        options:
+          model: gpt-4o               # 사용할 모델 지정 (gpt-4o, gpt-4-turbo 등)
+
   # PostgreSQL 설정
   datasource:
     url: "${DB_URL}"
@@ -55,11 +63,6 @@ springdoc:
     path: "${SWAGGER_DOCS}"
   swagger-ui:
     path: "${SWAGGER_UI}"
-
-# OpenAI 설정 (전역 적용을 위해 구분선 위로 배치)
-openai:
-  api:
-    key: ${OPENAI_API_KEY}  # 시스템 환경 변수 'OPENAI_API_KEY' 값을 가져옴
 
 ---
 # local-test 프로필 설정 시작 (새로운 YAML 문서)
