@@ -20,21 +20,37 @@ public class RecapRequest {
     @Builder
     @NoArgsConstructor
     @AllArgsConstructor
-    @Schema(name = "RecapCreateRequest")
+    @Schema(name = "RecapCreateRequest", description = "리캡 생성 요청 DTO")
     public static class Create {
-        @NotNull
+
+        @NotNull(message = "펫 ID는 필수입니다.")
+        @Schema(description = "리캡을 생성할 펫 ID", example = "1")
         private Long petId;
-        @NotNull
+
+        @NotNull(message = "사용자 ID는 필수입니다.")
+        @Schema(description = "사용자 ID", example = "1")
         private Long userId;
 
+        @Schema(description = "리캡 제목", example = "2024년 3월의 추억")
         private String title;
+
+        @Schema(description = "리캡 요약 문구", example = "산책을 많이 다녀서 즐거웠던 한 달!")
         private String summary;
+
+        @Schema(description = "집계 기간 시작일", example = "2024-03-01")
         private LocalDate periodStart;
+
+        @Schema(description = "집계 기간 종료일", example = "2024-03-31")
         private LocalDate periodEnd;
+
+        @Schema(description = "대표 이미지 URL", example = "https://bucket.s3.region.amazonaws.com/recap-cover.jpg")
         private String mainImageUrl;
+
+        @Schema(description = "포함된 추억(일기) 개수", example = "15")
         private Integer momentCount;
 
         // 하이라이트 목록
+        @Schema(description = "리캡 하이라이트 목록")
         private List<HighlightDto> highlights;
 
         // DTO -> Entity 변환 메서드
@@ -66,8 +82,13 @@ public class RecapRequest {
     @Builder
     @NoArgsConstructor
     @AllArgsConstructor
+    @Schema(description = "리캡 하이라이트 정보 DTO")
     public static class HighlightDto {
+
+        @Schema(description = "하이라이트 제목", example = "한강 공원 나들이")
         private String title;
+
+        @Schema(description = "하이라이트 내용", example = "처음으로 강아지 친구를 만났어요.")
         private String content;
 
         // DTO -> Entity 변환
