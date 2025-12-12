@@ -61,6 +61,12 @@ public class RecapResponse {
         @Schema(description = "기간 내 평균 몸무게 (kg)", example = "5.2")
         private Double avgWeight;
 
+        @Schema(description = "생성 일시")
+        private LocalDateTime createdAt;
+
+        @Schema(description = "수정 일시")
+        private LocalDateTime updatedAt;
+
         @Schema(description = "리캡 하이라이트 목록")
         private List<Highlight> highlights;
 
@@ -77,6 +83,8 @@ public class RecapResponse {
                     .momentCount(recap.getMomentCount())
                     .status(recap.getStatus().name())
                     // 건강 데이터는 Service에서 주입하므로 여기선 skip
+                    .createdAt(recap.getCreatedAt())
+                    .updatedAt(recap.getUpdatedAt())
                     .highlights(recap.getHighlights().stream()
                             .map(Highlight::fromEntity)
                             .collect(Collectors.toList()))
@@ -115,6 +123,9 @@ public class RecapResponse {
         @Schema(description = "생성일시")
         private LocalDateTime createdAt;
 
+        @Schema(description = "수정일시")
+        private LocalDateTime updatedAt;
+
         public static Simple fromEntity(Recap recap) {
             return Simple.builder()
                     .recapId(recap.getRecapId())
@@ -125,6 +136,7 @@ public class RecapResponse {
                     .periodStart(recap.getPeriodStart())
                     .periodEnd(recap.getPeriodEnd())
                     .createdAt(recap.getCreatedAt())
+                    .updatedAt(recap.getUpdatedAt())
                     .build();
         }
     }
