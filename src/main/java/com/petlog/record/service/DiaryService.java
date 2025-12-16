@@ -2,8 +2,8 @@ package com.petlog.record.service;
 
 import com.petlog.record.dto.request.DiaryRequest;
 import com.petlog.record.dto.response.DiaryResponse;
-import com.petlog.record.entity.Visibility; // Visibility Enum 추가
-import org.springframework.web.multipart.MultipartFile; // MultipartFile 추가
+import com.petlog.record.entity.Visibility;
+import org.springframework.web.multipart.MultipartFile;
 
 public interface DiaryService {
 

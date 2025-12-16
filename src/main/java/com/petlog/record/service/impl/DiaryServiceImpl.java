@@ -13,8 +13,8 @@ import com.petlog.record.entity.Visibility;
 import com.petlog.record.exception.EntityNotFoundException;
 import com.petlog.record.exception.ErrorCode;
 import com.petlog.record.repository.DiaryRepository;
-import com.petlog.record.service.DiaryService;
 
+import com.petlog.record.service.DiaryService;
 import feign.FeignException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -42,7 +42,7 @@ import java.util.stream.Collectors;
 @Service
 @RequiredArgsConstructor
 @Transactional(readOnly = true)
-public class DiaryServiceI1mpl implements DiaryService {
+public class DiaryServiceImpl implements DiaryService {
 
     private final DiaryRepository diaryRepository;
 

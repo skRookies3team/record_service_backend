@@ -24,9 +24,9 @@ import java.util.Map;
 @RestController
 @RequestMapping("/api/diaries")
 @RequiredArgsConstructor
-public class Diary1Controller {
+public class DiaryController {
 
-    private final DiaryService diaryService;
+    private final DiaryService diaryService1;
 
     /**
      * [AI 일기 생성]
@@ -45,7 +45,7 @@ public class Diary1Controller {
         log.info("AI 일기 생성 요청 - UserId: {}, PetId: {}", request.getUserId(), request.getPetId());
 
         // 1. 서비스 호출 (통합된 DiaryService 사용)
-        Long diaryId = diaryService.createAiDiary(
+        Long diaryId = diaryService1.createAiDiary(
                 request.getUserId(),
                 request.getPetId(),
                 image,
@@ -71,21 +71,21 @@ public class Diary1Controller {
     public ResponseEntity<DiaryResponse> getDiary(@PathVariable Long diaryId) {
         // [디버깅 로그] 요청이 들어오는지 확인
         log.info("GET Diary Request - ID: {}", diaryId);
-        return ResponseEntity.ok(diaryService.getDiary(diaryId));
+        return ResponseEntity.ok(diaryService1.getDiary(diaryId));
     }
 
     @Operation(summary = "다이어리 수정", description = "기존 일기의 내용(텍스트, 공개범위, 날씨, 기분)을 부분 수정합니다.")
     @PatchMapping("/{diaryId}")
     public ResponseEntity<Void> updateDiary(@PathVariable Long diaryId,
                                             @RequestBody DiaryRequest.Update request) {
-        diaryService.updateDiary(diaryId, request);
+        diaryService1.updateDiary(diaryId, request);
         return ResponseEntity.noContent().build();
     }
 
     @Operation(summary = "다이어리 삭제", description = "특정 일기를 삭제합니다.")
     @DeleteMapping("/{diaryId}")
     public ResponseEntity<Void> deleteDiary(@PathVariable Long diaryId) {
-        diaryService.deleteDiary(diaryId);
+        diaryService1.deleteDiary(diaryId);
         return ResponseEntity.noContent().build();
     }
 }
