@@ -49,9 +49,9 @@ server:
 # === 외부 서비스 URL 설정 (Default Profile) ===
 external:
   user-service:
-    url: ${USER_SERVICE_URL:http://localhost:8081}
+    url: ${USER_SERVICE_URL}
   pet-service:
-    url: ${PET_SERVICE_URL:http://localhost:8082}
+    url: ${PET_SERVICE_URL}
   notification-service:
     url: ${NOTIFICATION_SERVICE_URL:http://localhost:8083}
   storage-service:
@@ -69,7 +69,8 @@ springdoc:
 spring:
   config:
     activate:
-      on-profile: local-test
+      # on-profile: local-test
+      on-profile:
   cloud:
     openfeign:
       client:

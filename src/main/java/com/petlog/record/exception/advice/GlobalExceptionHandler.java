@@ -10,6 +10,8 @@ import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import com.petlog.record.exception.UnauthorizedException; // [추가]
+import org.springframework.web.multipart.support.MissingServletRequestPartException;
+import org.springframework.web.reactive.resource.NoResourceFoundException;
 
 import java.nio.file.AccessDeniedException;
 import java.time.LocalDateTime;
@@ -195,5 +197,24 @@ public class GlobalExceptionHandler {
                 .build();
 
         return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(errorResponse);
+    }
+
+    /**
+     * [추가] 필수 Request Part 누락 (파일 업로드 등)
+     */
+    @ExceptionHandler(MissingServletRequestPartException.class)
+    public ResponseEntity<ErrorResponse> handleMissingServletRequestPartException(MissingServletRequestPartException e) {
+        log.warn("Missing request part: {}", e.getRequestPartName());
+
+        ErrorResponse errorResponse = ErrorResponse.builder()
+                .success(false)
+                .error(ErrorResponse.ErrorDetail.builder()
+                        .code(ErrorCode.VALIDATION_ERROR.getCode())
+                        .message("필수 데이터가 누락되었습니다: " + e.getRequestPartName())
+                        .build())
+                .timestamp(LocalDateTime.now())
+                .build();
+
+        return ResponseEntity.badRequest().body(errorResponse);
     }
 }
