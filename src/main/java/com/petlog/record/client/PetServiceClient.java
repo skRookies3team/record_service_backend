@@ -9,12 +9,6 @@ import org.springframework.web.bind.annotation.PathVariable;
 public interface PetServiceClient {
 
     /**
-     * 펫 존재 여부 확인
-     */
-    @GetMapping("/api/pets/{petId}/exists")
-    Boolean checkPetExists(@PathVariable("petId") Long petId);
-
-    /**
      * 펫 상세 정보 조회
      */
     @GetMapping("/api/pets/{petId}")

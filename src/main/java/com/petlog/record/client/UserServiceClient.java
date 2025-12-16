@@ -9,12 +9,6 @@ import org.springframework.web.bind.annotation.PathVariable;
 public interface UserServiceClient {
 
     /**
-     * 사용자 존재 여부 확인
-     */
-    @GetMapping("/api/users/{userId}/exists")
-    Boolean checkUserExists(@PathVariable("userId") Long userId);
-
-    /**
      * 사용자 상세 정보 조회
      */
     @GetMapping("/api/users/{userId}")

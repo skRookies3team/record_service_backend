@@ -42,7 +42,7 @@ import java.util.stream.Collectors;
 @Service
 @RequiredArgsConstructor
 @Transactional(readOnly = true)
-public class DiaryServiceImpl implements DiaryService {
+public class DiaryServiceI1mpl implements DiaryService {
 
     private final DiaryRepository diaryRepository;
 

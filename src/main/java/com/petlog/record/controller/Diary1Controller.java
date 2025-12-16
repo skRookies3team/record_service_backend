@@ -6,7 +6,6 @@ import com.petlog.record.service.DiaryService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.media.Content;
-import io.swagger.v3.oas.annotations.media.Encoding;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -25,7 +24,7 @@ import java.util.Map;
 @RestController
 @RequestMapping("/api/diaries")
 @RequiredArgsConstructor
-public class DiaryController {
+public class Diary1Controller {
 
     private final DiaryService diaryService;
 
