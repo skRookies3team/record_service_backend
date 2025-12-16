@@ -5,6 +5,14 @@ spring:
   application:
     name: petlog
 
+  # [중요] Spring AI 설정 경로 (이전 openai.api.key 에서 변경됨)
+  ai:
+    openai:
+      api-key: ${OPENAI_API_KEY}      # .env 파일의 변수 값 매핑
+      chat:
+        options:
+          model: gpt-4o               # 사용할 모델 지정 (gpt-4o, gpt-4-turbo 등)
+
   # PostgreSQL 설정
   datasource:
     url: "${DB_URL}"

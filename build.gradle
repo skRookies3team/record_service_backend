@@ -1,7 +1,7 @@
 plugins {
-	id 'java'
-	id 'org.springframework.boot' version '3.5.7'
-	id 'io.spring.dependency-management' version '1.1.7'
+    id 'java'
+    id 'org.springframework.boot' version '3.5.7' // 사용자 지정 버전 유지
+    id 'io.spring.dependency-management' version '1.1.7'
 }
 
 group = 'com.example'
@@ -9,68 +9,79 @@ version = '0.0.1-SNAPSHOT'
 description = 'Demo project for Spring Boot'
 
 java {
-	toolchain {
-		languageVersion = JavaLanguageVersion.of(17)
-	}
+    toolchain {
+        languageVersion = JavaLanguageVersion.of(17)
+    }
 }
 
 configurations {
-	compileOnly {
-		extendsFrom annotationProcessor
-	}
+    compileOnly {
+        extendsFrom annotationProcessor
+    }
 }
 
 repositories {
-	mavenCentral()
+    mavenCentral()
+    // [중요] Spring AI Milestone 버전을 다운로드하기 위한 저장소
+    maven { url 'https://repo.spring.io/milestone' }
 }
 
-// [1] Spring Cloud 버전 변수 설정
+// [1] 버전 변수 설정 (Cloud & AI 통합)
 ext {
-    set('springCloudVersion', "2025.0.0")
+    springCloudVersion = "2025.0.0"
+    springAiVersion = "1.0.0-M4"
 }
 
 dependencies {
-	implementation 'org.springframework.boot:spring-boot-starter-data-jpa'
-	implementation 'org.springframework.boot:spring-boot-starter-thymeleaf'
-	implementation 'org.springframework.boot:spring-boot-starter-validation'
-	implementation 'org.springframework.boot:spring-boot-starter-web'
-	implementation 'org.springframework.kafka:spring-kafka'
+    // [2] Spring AI OpenAI Starter
+    implementation 'org.springframework.ai:spring-ai-openai-spring-boot-starter'
+
+    // Spring Boot Starters
+    implementation 'org.springframework.boot:spring-boot-starter-data-jpa'
+    implementation 'org.springframework.boot:spring-boot-starter-thymeleaf'
+    implementation 'org.springframework.boot:spring-boot-starter-validation'
+    implementation 'org.springframework.boot:spring-boot-starter-web'
     implementation 'org.springframework.boot:spring-boot-starter-security'
+
+    // Kafka
+    implementation 'org.springframework.kafka:spring-kafka'
+
     // JWT
     implementation 'io.jsonwebtoken:jjwt-api:0.12.3'
     implementation 'io.jsonwebtoken:jjwt-impl:0.12.3'
     implementation 'io.jsonwebtoken:jjwt-jackson:0.12.3'
+
     // Swagger
     implementation 'org.springdoc:springdoc-openapi-starter-webmvc-ui:2.7.0'
 
-    // PostgreSQL
-    implementation 'org.postgresql:postgresql:42.7.8'
-
-    // Feign Client
+    // Spring Cloud (Feign & LoadBalancer)
     implementation 'org.springframework.cloud:spring-cloud-starter-openfeign'
-
-    implementation 'me.paulschwarz:spring-dotenv:4.0.0'
-
-    // 로드밸런서 (Feign Client 사용 시 필수)
     implementation 'org.springframework.cloud:spring-cloud-starter-loadbalancer'
 
-
+    // Utility
+    implementation 'me.paulschwarz:spring-dotenv:4.0.0'
     compileOnly 'org.projectlombok:lombok'
-	developmentOnly 'org.springframework.boot:spring-boot-devtools'
-	runtimeOnly 'org.mariadb.jdbc:mariadb-java-client'
-	annotationProcessor 'org.projectlombok:lombok'
-	testImplementation 'org.springframework.boot:spring-boot-starter-test'
-	testImplementation 'org.springframework.kafka:spring-kafka-test'
-	testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
+    developmentOnly 'org.springframework.boot:spring-boot-devtools'
+    annotationProcessor 'org.projectlombok:lombok'
+
+    // Databases (PostgreSQL & MariaDB)
+    runtimeOnly 'org.postgresql:postgresql:42.7.8' // 버전 명시 유지 & runtimeOnly로 통합
+    runtimeOnly 'org.mariadb.jdbc:mariadb-java-client'
+
+    // Test
+    testImplementation 'org.springframework.boot:spring-boot-starter-test'
+    testImplementation 'org.springframework.kafka:spring-kafka-test'
+    testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
 }
 
-// [3] Spring Cloud BOM (Bill of Materials) 관리 추가
+// [3] Dependency Management (Cloud & AI BOM 통합)
 dependencyManagement {
     imports {
         mavenBom "org.springframework.cloud:spring-cloud-dependencies:${springCloudVersion}"
+        mavenBom "org.springframework.ai:spring-ai-bom:${springAiVersion}"
     }
 }
 
 tasks.named('test') {
-	useJUnitPlatform()
+    useJUnitPlatform()
 }

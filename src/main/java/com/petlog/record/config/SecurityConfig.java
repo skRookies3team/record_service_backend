@@ -17,7 +17,7 @@ public class SecurityConfig {
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
         http
                 // 1. CSRF 해제
-               .csrf(csrf -> csrf.disable())
+                .csrf(csrf -> csrf.disable())
                 .cors(cors -> cors.disable())
 
 
