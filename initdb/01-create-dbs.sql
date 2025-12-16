@@ -1,0 +1,3 @@
+CREATE DATABASE diary_db;
+CREATE DATABASE user_db;
+CREATE DATABASE social_db;
