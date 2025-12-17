@@ -15,6 +15,8 @@ import com.petlog.record.exception.ErrorCode;
 import com.petlog.record.repository.DiaryRepository;
 
 import com.petlog.record.service.DiaryService;
+import com.petlog.record.service.WeatherService;
+import com.petlog.record.util.LatXLngY;
 import feign.FeignException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -55,6 +57,7 @@ public class DiaryServiceImpl implements DiaryService {
 
     // AI Components
     private final ChatModel chatModel;
+    private final WeatherService weatherService;
 
     @Value("classpath:prompts/diary-system.st")
     private Resource systemPromptResource;
@@ -64,7 +67,7 @@ public class DiaryServiceImpl implements DiaryService {
      */
     @Override
     @Transactional
-    public Long createAiDiary(Long userId, Long petId, MultipartFile imageFile, Visibility visibility) {
+    public Long createAiDiary(Long userId, Long petId, MultipartFile imageFile, Visibility visibility, Double latitude, Double longitude) {
         log.info("AI Diary creation started for user: {}, pet: {}", userId, petId);
 
         // 1. [검증] MSA 회원/펫 서비스 연동 (기존 로직 재사용)
@@ -78,13 +81,30 @@ public class DiaryServiceImpl implements DiaryService {
         // 3. AI 모델 호출 및 텍스트 생성
         AiDiaryResponse aiResponse = generateContentWithAi(imageFile);
 
-        // 4. Entity 생성 및 저장
+        // 4. [추가] 날씨 정보 가져오기 로직
+        String weatherInfo = "맑음"; // 기본값
+
+        // TODO: 프론트엔드에서 위치 정보(latitude, longitude)를 받아와야 함.
+        // 현재 createAiDiary 시그니처에는 위치 정보가 없으므로, DiaryRequest.Create 객체에서 꺼내 쓰거나
+        // 메서드 파라미터를 수정해야 함.
+        // 여기서는 임시로 서울 시청 좌표(37.5665, 126.9780)를 사용하여 테스트합니다.
+        // 실제로는 Controller에서 request 객체를 통해 위경도를 받아와야 합니다.
+        try {
+            // 서울 시청 좌표 예시
+            int[] grid = LatXLngY.convert(37.5665, 126.9780);
+            weatherInfo = weatherService.getCurrentWeather(grid[0], grid[1]);
+            log.info("Weather API Result: {}", weatherInfo);
+        } catch (Exception e) {
+            log.warn("Weather API call failed: {}", e.getMessage());
+        }
+
+        // 5. Entity 생성 및 저장
         Diary diary = Diary.builder()
                 .userId(userId)
                 .petId(petId)
                 .content(aiResponse.getContent()) // AI가 생성한 내용
                 .mood(aiResponse.getMood())       // AI가 분석한 기분
-                .weather("맑음") // 날씨는 별도 API나 입력이 없다면 기본값 또는 AI 추론 추가 가능
+                .weather(weatherInfo) // 날씨는 별도 API나 입력이 없다면 기본값 또는 AI 추론 추가 가능
                 .isAiGen(true)
                 .visibility(visibility)
                 .build();
@@ -188,18 +208,7 @@ public class DiaryServiceImpl implements DiaryService {
         }
     }
 
-    // --- 기존 CRUD 메서드 (createDiary 제외 또는 유지) ---
-
-    @Override
-    @Transactional
-    public Long createDiary(DiaryRequest.Create request) {
-        // 기존 수동 생성 로직 (필요하다면 유지)
-        validateUserAndPet(request.getUserId(), request.getPetId());
-        Diary diary = request.toEntity();
-        Diary savedDiary = diaryRepository.save(diary);
-        processDiaryImages(diary);
-        return savedDiary.getDiaryId();
-    }
+    // --- 기존 CRUD 메서드
 
     @Override
     public DiaryResponse getDiary(Long diaryId) {

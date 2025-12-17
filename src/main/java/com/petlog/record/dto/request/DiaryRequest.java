@@ -29,6 +29,13 @@ public class DiaryRequest {
         @Schema(description = "관련된 펫 ID", example = "1")
         private Long petId;
 
+        // [추가] 위치 정보 (선택)
+        @Schema(description = "위도", example = "37.5665")
+        private Double latitude;
+
+        @Schema(description = "경도", example = "126.9780")
+        private Double longitude;
+
         @Schema(description = "일기 내용", example = "오늘 산책 너무 즐거웠어!")
         private String content;
 

@@ -6,6 +6,7 @@ import com.petlog.record.service.DiaryService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.media.Content;
+import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -26,7 +27,7 @@ import java.util.Map;
 @RequiredArgsConstructor
 public class DiaryController {
 
-    private final DiaryService diaryService1;
+    private final DiaryService diaryService;
 
     /**
      * [AI 일기 생성]
@@ -39,17 +40,20 @@ public class DiaryController {
             @Parameter(description = "업로드할 이미지 파일", content = @Content(mediaType = MediaType.MULTIPART_FORM_DATA_VALUE))
             @RequestPart("image") MultipartFile image,
 
-            @Parameter(description = "일기 생성 요청 데이터 (JSON)", content = @Content(mediaType = MediaType.APPLICATION_JSON_VALUE))
+            @Parameter(description = "일기 생성 요청 데이터 (JSON)", content = @Content(mediaType = MediaType.APPLICATION_JSON_VALUE, schema = @Schema(implementation = DiaryRequest.Create.class))) // 클래스 명시)
             @Valid @RequestPart("data") DiaryRequest.Create request
     ) {
         log.info("AI 일기 생성 요청 - UserId: {}, PetId: {}", request.getUserId(), request.getPetId());
 
         // 1. 서비스 호출 (통합된 DiaryService 사용)
-        Long diaryId = diaryService1.createAiDiary(
+        // [수정] 위도, 경도 파라미터 전달
+        Long diaryId = diaryService.createAiDiary(
                 request.getUserId(),
                 request.getPetId(),
                 image,
-                request.getVisibility()
+                request.getVisibility(),
+                request.getLatitude(),
+                request.getLongitude()
         );
 
         // 2. 응답 메시지 커스텀 (Map 사용 - 기존 스타일 유지)
@@ -71,21 +75,21 @@ public class DiaryController {
     public ResponseEntity<DiaryResponse> getDiary(@PathVariable Long diaryId) {
         // [디버깅 로그] 요청이 들어오는지 확인
         log.info("GET Diary Request - ID: {}", diaryId);
-        return ResponseEntity.ok(diaryService1.getDiary(diaryId));
+        return ResponseEntity.ok(diaryService.getDiary(diaryId));
     }
 
     @Operation(summary = "다이어리 수정", description = "기존 일기의 내용(텍스트, 공개범위, 날씨, 기분)을 부분 수정합니다.")
     @PatchMapping("/{diaryId}")
     public ResponseEntity<Void> updateDiary(@PathVariable Long diaryId,
                                             @RequestBody DiaryRequest.Update request) {
-        diaryService1.updateDiary(diaryId, request);
+        diaryService.updateDiary(diaryId, request);
         return ResponseEntity.noContent().build();
     }
 
     @Operation(summary = "다이어리 삭제", description = "특정 일기를 삭제합니다.")
     @DeleteMapping("/{diaryId}")
     public ResponseEntity<Void> deleteDiary(@PathVariable Long diaryId) {
-        diaryService1.deleteDiary(diaryId);
+        diaryService.deleteDiary(diaryId);
         return ResponseEntity.noContent().build();
     }
 }

@@ -7,11 +7,9 @@ import org.springframework.web.multipart.MultipartFile;
 
 public interface DiaryService {
 
-    // [변경] AI 일기 생성 (이미지 파일 필수)
-    Long createAiDiary(Long userId, Long petId, MultipartFile imageFile, Visibility visibility);
+    // [수정] AI 일기 생성 (위도, 경도 추가)
+    Long createAiDiary(Long userId, Long petId, MultipartFile imageFile, Visibility visibility, Double latitude, Double longitude);
 
-    // 일기 생성
-    Long createDiary(DiaryRequest.Create request);
 
     // 일기 단건 조회
     DiaryResponse getDiary(Long diaryId);
