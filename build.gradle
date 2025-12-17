@@ -61,7 +61,8 @@ dependencies {
     implementation 'org.springframework.cloud:spring-cloud-starter-openfeign'
     implementation 'org.springframework.cloud:spring-cloud-starter-loadbalancer'
 
-    // build.gradle dependencies 내부에 추가
+    // PostGIS 공간 데이터(Point, Geometry) 처리를 위한 라이브러리 (위치 저장/조회 기능)
+    // 위치 기반 서비스(LBS) 및 PostGIS 연동
     implementation 'org.hibernate:hibernate-spatial:6.2.13.Final' // Spring Boot 버전에 맞는 버전 사용
     implementation 'org.locationtech.jts:jts-core:1.19.0'
 
