@@ -53,7 +53,8 @@ public class DiaryController {
                 image,
                 request.getVisibility(),
                 request.getLatitude(),
-                request.getLongitude()
+                request.getLongitude(),
+                request.getDate() // [추가] 날짜 전달
         );
 
         // 2. 응답 메시지 커스텀 (Map 사용 - 기존 스타일 유지)

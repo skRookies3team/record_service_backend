@@ -65,6 +65,7 @@ external:
   # [추가] 기상청 API 키 설정 (없으면 실행 오류 방지를 위해 dummy 값 설정)
   weather:
     api-key: ${WEATHER_API_KEY}
+    asos-api-key: ${ASOS_API_KEY}     # [추가] ASOS(과거날씨)용 (없으면 WEATHER_API_KEY와 같게 설정 가능)
 
 # [수정] springdoc 설정을 default 프로필 영역으로 이동
 springdoc:
