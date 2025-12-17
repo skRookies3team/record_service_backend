@@ -1,5 +1,6 @@
 package com.petlog.record.service;
 
+import com.petlog.record.dto.request.LocationRequest;
 import com.petlog.record.dto.response.LocationResponse; // DTO import
 
 import java.time.LocalDate;
@@ -12,4 +13,10 @@ public interface LocationService {
      * @return 위도(latitude), 경도(longitude)를 담은 DTO (데이터가 없으면 null 반환)
      */
     LocationResponse getRepresentativeLocation(Long userId, LocalDate date);
+
+    /**
+     * [NEW] 실시간 위치 정보를 저장합니다.
+     * 이 메서드가 인터페이스에 있어야 Controller에서 호출할 수 있습니다.
+     */
+    void saveLocation(LocationRequest request);
 }

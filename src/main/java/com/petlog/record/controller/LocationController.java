@@ -1,9 +1,11 @@
 package com.petlog.record.controller;
 
+import com.petlog.record.dto.request.LocationRequest;
 import com.petlog.record.dto.response.LocationResponse;
 import com.petlog.record.service.LocationService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.format.annotation.DateTimeFormat;
@@ -39,5 +41,14 @@ public class LocationController {
 
         log.info("위치 기록 반환: {}", location);
         return ResponseEntity.ok(location);
+    }
+
+    // [NEW] 실시간 위치 저장 (프론트엔드 LocationTracker가 20분마다 호출)
+    @Operation(summary = "실시간 위치 저장", description = "앱 사용 중 현재 위치를 DB에 저장합니다.")
+    @PostMapping
+    public ResponseEntity<Void> saveLocation(@RequestBody @Valid LocationRequest request) {
+        log.info("위치 저장 요청 수신 - User: {}, Lat: {}, Lng: {}", request.getUserId(), request.getLatitude(), request.getLongitude());
+        locationService.saveLocation(request);
+        return ResponseEntity.ok().build();
     }
 }
