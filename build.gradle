@@ -61,6 +61,10 @@ dependencies {
     implementation 'org.springframework.cloud:spring-cloud-starter-openfeign'
     implementation 'org.springframework.cloud:spring-cloud-starter-loadbalancer'
 
+    // build.gradle dependencies 내부에 추가
+    implementation 'org.hibernate:hibernate-spatial:6.2.13.Final' // Spring Boot 버전에 맞는 버전 사용
+    implementation 'org.locationtech.jts:jts-core:1.19.0'
+
     // Utility
     implementation 'me.paulschwarz:spring-dotenv:4.0.0'
     compileOnly 'org.projectlombok:lombok'
@@ -75,6 +79,7 @@ dependencies {
     testImplementation 'org.springframework.boot:spring-boot-starter-test'
     testImplementation 'org.springframework.kafka:spring-kafka-test'
     testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
+
 }
 
 // [3] Dependency Management (Cloud & AI BOM 통합)
