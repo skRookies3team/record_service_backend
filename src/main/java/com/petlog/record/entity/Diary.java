@@ -5,6 +5,7 @@ import lombok.*;
 import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
 
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
@@ -41,6 +42,17 @@ public class Diary {
     // AI 작성 여부 - 필수값
     @Column(nullable = false)
     private Boolean isAiGen;
+
+    // --- [New] 위치 정보 및 날짜 필드 추가 ---
+    private String locationName; // 주소 (예: 서울특별시 마포구)
+
+    private Double latitude;     // 위도
+
+    private Double longitude;    // 경도
+
+    private LocalDate date;      // 일기 날짜 (실제 기록된 날짜)
+    // -------------------------------------
+
 
     // 날씨 (선택 입력)
     private String weather;

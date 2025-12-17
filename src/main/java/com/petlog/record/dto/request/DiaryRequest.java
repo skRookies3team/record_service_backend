@@ -37,6 +37,10 @@ public class DiaryRequest {
         @Schema(description = "경도", example = "126.9780")
         private Double longitude;
 
+        // [수정] 주소명 필드 추가
+        @Schema(description = "위치 주소 (직접 입력 시)", example = "서울 마포구")
+        private String locationName;
+
         @Schema(description = "일기 날짜 (과거 일기 작성 시 필수)", example = "2023-10-25")
         private LocalDate date; // [추가] 날짜 필드
 
