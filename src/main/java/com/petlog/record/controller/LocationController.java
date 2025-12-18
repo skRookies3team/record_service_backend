@@ -19,7 +19,6 @@ import java.time.LocalDate;
 @RestController
 @RequestMapping("/api/locations")
 @RequiredArgsConstructor
-@CrossOrigin(origins = "http://localhost:5173") // [중요] CORS 허용 추가
 public class LocationController {
 
     private final LocationService locationService;

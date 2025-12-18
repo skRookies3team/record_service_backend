@@ -25,8 +25,6 @@ import java.util.Map;
 @RestController
 @RequestMapping("/api/diaries")
 @RequiredArgsConstructor
-// [중요] 프론트엔드(5173)에서의 요청 허용
-@CrossOrigin(origins = "http://localhost:5173")
 public class DiaryController {
 
     private final DiaryService diaryService;
