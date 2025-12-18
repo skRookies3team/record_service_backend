@@ -69,6 +69,8 @@ public class DiaryResponse {
                 .petId(diary.getPetId())
                 .content(diary.getContent())
                 .locationName(diary.getLocationName())
+                .latitude(diary.getLatitude())         // 위도
+                .longitude(diary.getLongitude())       // 경도
                 .visibility(diary.getVisibility())
                 .weather(diary.getWeather())
                 .mood(diary.getMood())

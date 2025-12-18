@@ -1,11 +1,18 @@
-spring:
-  config:
-    import: "optional:file:.env[.properties]"
+server:
+  port: 8087
 
+spring:
   application:
     name: petlog
 
-  # [중요] Spring AI 설정 경로
+  # 프로파일 설정 (기본적으로 dev 활성화, 배포 시 prod로 오버라이드)
+  profiles:
+    active: dev
+
+  config:
+    import: "optional:file:.env[.properties]"
+
+  # [중요] Spring AI 설정 (공통)
   ai:
     openai:
       api-key: ${OPENAI_API_KEY}
@@ -13,28 +20,18 @@ spring:
         options:
           model: gpt-4o
 
-  # PostgreSQL 설정
-  datasource:
-    url: "${DB_URL}"
-    username: "${DB_USERNAME}"
-    password: "${DB_PASSWORD}"
-    driverClassName: org.postgresql.Driver
+  # 파일 업로드 제한 (User Service와 동일하게 맞춤)
+  servlet:
+    multipart:
+      max-file-size: 10MB
+      max-request-size: 10MB
 
-  jpa:
-    hibernate:
-      ddl-auto: update
-    show-sql: true
-    database-platform: org.hibernate.dialect.PostgreSQLDialect
-    properties:
-      hibernate:
-        format_sql: true
-
-  # MongoDB 설정
+  # MongoDB 설정 (공통)
   data:
     mongodb:
       uri: "${MONGO_URI}"
 
-  # MSA Feign Client 설정
+  # MSA Feign Client 설정 (공통)
   cloud:
     openfeign:
       client:
@@ -43,14 +40,11 @@ spring:
             connectTimeout: 5000
             readTimeout: 5000
 
+# === 외부 서비스 URL 설정 (공통) ===
 openapi:
   service:
     url: ${API_GATEWAY}
 
-server:
-  port: 8087
-
-# === 외부 서비스 URL 설정 ===
 external:
   user-service:
     url: ${USER_SERVICE_URL}
@@ -61,18 +55,11 @@ external:
   storage-service:
     url: ${STORAGE_SERVICE_URL:http://localhost:8084}
 
-  # 기상청 API (WeatherService 코드 확인 필요: @Value("${external.weather.api-key}")로 되어있다면 유지)
+  # 기상청 API
   weather:
     api-key: ${WEATHER_API_KEY}
     asos-api-key: ${ASOS_API_KEY}
 
-# [수정] Kakao API 설정을 external 들여쓰기 밖으로 뺐습니다.
-# 이제 코드의 @Value("${kakao.rest-api-key}")와 경로가 일치합니다.
+# Kakao API
 kakao:
   rest-api-key: ${KAKAO_REST_API_KEY}
-
-springdoc:
-  api-docs:
-    path: "${SWAGGER_DOCS}"
-  swagger-ui:
-    path: "${SWAGGER_UI}"

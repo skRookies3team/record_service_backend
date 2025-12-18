@@ -1,0 +1,27 @@
+spring:
+  # PostgreSQL 설정 (배포용 - 최적화 포함)
+  datasource:
+    url: "${DB_URL}"
+    username: "${DB_USERNAME}"
+    password: "${DB_PASSWORD}"
+    driverClassName: org.postgresql.Driver
+    hikari:
+      maximum-pool-size: 10
+      minimum-idle: 2
+      idle-timeout: 30000 # 30초
+      max-lifetime: 1800000 # 30분
+      connection-timeout: 30000
+
+  jpa:
+    hibernate:
+      ddl-auto: validate # 배포 시 스키마 검증만 수행 (데이터 손실 방지)
+    show-sql: false      # SQL 로그 비활성화 (성능 최적화)
+    open-in-view: false  # OSIV 비활성화 (DB 커넥션 점유 시간 단축)
+    database-platform: org.hibernate.dialect.PostgreSQLDialect
+
+# Swagger 설정 (배포 환경 비활성화 - 보안)
+springdoc:
+  api-docs:
+    enabled: false
+  swagger-ui:
+    enabled: false

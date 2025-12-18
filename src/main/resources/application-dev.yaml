@@ -1,0 +1,23 @@
+spring:
+  # PostgreSQL 설정 (개발용)
+  datasource:
+    url: "${DB_URL}"
+    username: "${DB_USERNAME}"
+    password: "${DB_PASSWORD}"
+    driverClassName: org.postgresql.Driver
+
+  jpa:
+    hibernate:
+      ddl-auto: update # 개발 시 스키마 자동 업데이트
+    show-sql: true     # SQL 로그 출력
+    database-platform: org.hibernate.dialect.PostgreSQLDialect
+    properties:
+      hibernate:
+        format_sql: true
+
+# Swagger 설정 (개발 환경 활성화)
+springdoc:
+  api-docs:
+    path: "${SWAGGER_DOCS}"
+  swagger-ui:
+    path: "${SWAGGER_UI}"
