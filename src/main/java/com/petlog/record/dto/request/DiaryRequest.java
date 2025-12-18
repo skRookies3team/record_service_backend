@@ -8,6 +8,7 @@ import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.NotNull;
 import lombok.*;
 
+import java.time.LocalDate;
 import java.util.List;
 
 public class DiaryRequest {
@@ -28,6 +29,20 @@ public class DiaryRequest {
         @NotNull(message = "펫 ID는 필수입니다.")
         @Schema(description = "관련된 펫 ID", example = "1")
         private Long petId;
+
+        // [추가] 위치 정보 (선택)
+        @Schema(description = "위도", example = "37.5665")
+        private Double latitude;
+
+        @Schema(description = "경도", example = "126.9780")
+        private Double longitude;
+
+        // [수정] 주소명 필드 추가
+        @Schema(description = "위치 주소 (직접 입력 시)", example = "서울 마포구")
+        private String locationName;
+
+        @Schema(description = "일기 날짜 (과거 일기 작성 시 필수)", example = "2023-10-25")
+        private LocalDate date; // [추가] 날짜 필드
 
         @Schema(description = "일기 내용", example = "오늘 산책 너무 즐거웠어!")
         private String content;

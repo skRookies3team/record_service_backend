@@ -5,13 +5,14 @@ import com.petlog.record.dto.response.DiaryResponse;
 import com.petlog.record.entity.Visibility;
 import org.springframework.web.multipart.MultipartFile;
 
+import java.time.LocalDate;
+
 public interface DiaryService {
 
-    // [변경] AI 일기 생성 (이미지 파일 필수)
-    Long createAiDiary(Long userId, Long petId, MultipartFile imageFile, Visibility visibility);
-
-    // 일기 생성
-    Long createDiary(DiaryRequest.Create request);
+    // [수정] 날짜, locationName 파라미터 추가
+    Long createAiDiary(Long userId, Long petId, MultipartFile imageFile,
+                       Visibility visibility, String locationName,
+                       Double latitude, Double longitude, LocalDate date);
 
     // 일기 단건 조회
     DiaryResponse getDiary(Long diaryId);

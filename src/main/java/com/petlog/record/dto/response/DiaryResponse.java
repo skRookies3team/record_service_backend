@@ -30,6 +30,16 @@ public class DiaryResponse {
     @Schema(description = "일기 내용", example = "오늘 공원에서 산책하며 즐거운 시간을 보냈다.")
     private String content;
 
+    @Schema(description = "위치 주소", example = "서울특별시 마포구...")
+    private String locationName;
+
+    // [추가] 위치 정보 (선택)
+    @Schema(description = "위도", example = "37.5665")
+    private Double latitude;
+
+    @Schema(description = "경도", example = "126.9780")
+    private Double longitude;
+
     @Schema(description = "공개 범위", example = "PUBLIC")
     private Visibility visibility;
 
@@ -58,6 +68,7 @@ public class DiaryResponse {
                 .userId(diary.getUserId())
                 .petId(diary.getPetId())
                 .content(diary.getContent())
+                .locationName(diary.getLocationName())
                 .visibility(diary.getVisibility())
                 .weather(diary.getWeather())
                 .mood(diary.getMood())
