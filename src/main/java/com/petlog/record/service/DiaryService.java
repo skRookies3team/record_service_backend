@@ -9,10 +9,7 @@ import java.time.LocalDate;
 
 public interface DiaryService {
 
-//    // [수정] 날짜 파라미터 추가
-//    Long createAiDiary(Long userId, Long petId, MultipartFile imageFile, Visibility visibility, Double latitude, Double longitude, LocalDate date);
-
-    // [수정] locationName 파라미터 추가
+    // [수정] 날짜, locationName 파라미터 추가
     Long createAiDiary(Long userId, Long petId, MultipartFile imageFile,
                        Visibility visibility, String locationName,
                        Double latitude, Double longitude, LocalDate date);

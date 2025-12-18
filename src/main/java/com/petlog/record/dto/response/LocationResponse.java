@@ -16,7 +16,7 @@ public class LocationResponse {
     @Schema(description = "경도", example = "126.9780")
     private Double longitude;
 
-    // 정적 팩토리 메서드 (편의용)
+    // 정적 팩토리 메서드
     public static LocationResponse of(Double latitude, Double longitude) {
         return LocationResponse.builder()
                 .latitude(latitude)
