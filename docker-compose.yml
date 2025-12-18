@@ -1,6 +1,8 @@
 services:
   postgres:
-    image: postgres:15-alpine
+    # [핵심 변경] 일반 'postgres' 대신 'postgis'가 설치된 이미지를 사용해야 합니다.
+    # alpine 버전은 용량이 작고 가볍습니다.
+    image: postgis/postgis:15-3.4-alpine
     container_name: petlog_pg_master
     restart: always
     ports:
@@ -11,6 +13,7 @@ services:
       POSTGRES_DB: postgres
     volumes:
       - pg_data:/var/lib/postgresql/data
+      # 초기화 스크립트 폴더가 있다면 연결 (선택 사항)
       - ./initdb:/docker-entrypoint-initdb.d
 
 volumes:
