@@ -60,7 +60,8 @@ public class Diary {
     // 기분 (선택 입력)
     private String mood;
 
-    // 보관함 ID (선택 입력)
+    // 보관함 ID
+    @Column(nullable = false)
     private Long photoArchiveId;
 
     // 작성일

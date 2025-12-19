@@ -2,8 +2,8 @@ package com.petlog.record.service.impl;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.petlog.record.client.ImageClient;
 import com.petlog.record.client.PetClient;
-import com.petlog.record.client.StorageClient;
 import com.petlog.record.client.UserClient;
 import com.petlog.record.dto.request.DiaryRequest;
 import com.petlog.record.dto.response.AiDiaryResponse;
@@ -12,6 +12,7 @@ import com.petlog.record.entity.Diary;
 import com.petlog.record.entity.DiaryImage;
 import com.petlog.record.entity.ImageSource;
 import com.petlog.record.entity.Visibility;
+import com.petlog.record.exception.BusinessException;
 import com.petlog.record.exception.EntityNotFoundException;
 import com.petlog.record.exception.ErrorCode;
 import com.petlog.record.repository.DiaryRepository;
@@ -28,7 +29,6 @@ import org.springframework.ai.chat.prompt.PromptTemplate;
 import org.springframework.ai.converter.BeanOutputConverter;
 import org.springframework.ai.model.Media;
 import org.springframework.ai.openai.OpenAiChatOptions;
-import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.io.ByteArrayResource;
 import org.springframework.core.io.Resource;
@@ -56,9 +56,7 @@ public class DiaryServiceImpl implements DiaryService {
     private final DiaryRepository diaryRepository;
     private final UserClient userClient;
     private final PetClient petClient;
-
-    @Qualifier("mockStorageServiceClient")
-    private final StorageClient storageClient;
+    private final ImageClient imageClient;
 
     private final ChatModel chatModel;
     private final WeatherService weatherService;
@@ -72,20 +70,41 @@ public class DiaryServiceImpl implements DiaryService {
 
     @Override
     @Transactional
-    public Long createAiDiary(Long userId, Long petId, MultipartFile imageFile,
+    public Long createAiDiary(Long userId, Long petId, Long photoArchiveId, MultipartFile imageFile,
                               Visibility visibility, String locationName,
                               Double latitude, Double longitude, LocalDate date) {
         log.info("AI Diary creation started for user: {}, pet: {}", userId, petId);
 
         validateUserAndPet(userId, petId);
 
-        // TODO: 실제 S3 업로드 로직으로 교체 필요
-        String uploadedImageUrl = "https://temporary-url/test-image.jpg";
+        // [중요] MultipartFile의 InputStream은 한 번만 읽을 수 있으므로 byte[]로 복사하여 재사용합니다.
+        byte[] imageBytes;
+        try {
+            imageBytes = imageFile.getBytes();
+        } catch (IOException e) {
+            log.error("파일 데이터를 읽는 중 오류 발생", e);
+            throw new BusinessException(ErrorCode.UPLOAD_FILE_IO_EXCEPTION);
+        }
 
-        // 1. AI 일기 내용 생성
-        AiDiaryResponse aiResponse = generateContentWithAi(imageFile);
+        // 1. 유저 서비스(8080)의 S3 업로드 API 호출
+        String uploadedImageUrl;
+        try {
+            // S3 업로드 (유저 서비스 호출)
+            List<String> imageUrls = imageClient.uploadImageToS3(List.of(imageFile));
+            if (imageUrls == null || imageUrls.isEmpty()) {
+                throw new BusinessException(ErrorCode.UPLOAD_FILE_IO_EXCEPTION);
+            }
+            uploadedImageUrl = imageUrls.get(0);
+            log.info("S3 업로드 성공: {}", uploadedImageUrl);
+        } catch (Exception e) {
+            log.error("유저 서비스 S3 업로드 호출 실패: {}", e.getMessage());
+            throw new RuntimeException("이미지 서버 연동 실패");
+        }
 
-        // 2. 날씨 정보 처리
+        // 2. AI 일기 내용 생성 (복사해둔 byte[] 전달)
+        AiDiaryResponse aiResponse = generateContentWithAi(imageBytes);
+
+        // 3. 날씨 정보 처리
         String weatherInfo = "맑음";
         LocalDate targetDate = date != null ? date : LocalDate.now();
 
@@ -102,8 +121,7 @@ public class DiaryServiceImpl implements DiaryService {
             log.warn("Weather API call failed: {}", e.getMessage());
         }
 
-        // 3. 주소 변환 (프론트에서 locationName을 안 보내므로 백엔드 변환 필수)
-        // locationName이 비어있으면 좌표를 사용하여 변환 시도
+        // 4. 주소 변환
         String finalLocationName = locationName;
         if ((finalLocationName == null || finalLocationName.isEmpty()) && latitude != null && longitude != null && latitude != 0 && longitude != 0) {
             log.info("좌표 기반 주소 변환 시도: lat={}, lng={}", latitude, longitude);
@@ -113,10 +131,11 @@ public class DiaryServiceImpl implements DiaryService {
             finalLocationName = "위치 정보 없음";
         }
 
-        // 4. 일기 저장
+        // 5. 일기 저장
         Diary diary = Diary.builder()
                 .userId(userId)
                 .petId(petId)
+                .photoArchiveId(photoArchiveId) // [추가] DTO에서 받은 보관함 ID 설정
                 .content(aiResponse.getContent())
                 .mood(aiResponse.getMood())
                 .weather(weatherInfo)
@@ -124,7 +143,7 @@ public class DiaryServiceImpl implements DiaryService {
                 .visibility(visibility)
                 .latitude(latitude)
                 .longitude(longitude)
-                .locationName(finalLocationName) // 변환된 주소 저장
+                .locationName(finalLocationName)
                 .date(targetDate)
                 .build();
 
@@ -139,27 +158,46 @@ public class DiaryServiceImpl implements DiaryService {
         diary.addImage(diaryImage);
         Diary savedDiary = diaryRepository.save(diary);
 
-        processDiaryImages(savedDiary);
+        // 6. 보관함(Archive) 서비스로 MultipartFile 직접 전송 자동화
+        autoArchiveDiaryImage(savedDiary.getUserId(), imageFile);
 
         return savedDiary.getDiaryId();
     }
 
-    // [Private Methods]
+    /**
+     * 일기 이미지를 보관함에 자동으로 추가하는 메서드
+     */
+    private void autoArchiveDiaryImage(Long userId, MultipartFile imageFile) {
+        if (imageFile == null || imageFile.isEmpty()) return;
 
-    private AiDiaryResponse generateContentWithAi(MultipartFile imageFile) {
+        try {
+            imageClient.createArchive(userId, List.of(imageFile));
+            log.info("사용자 {}의 보관함에 일기 이미지가 자동 저장되었습니다.", userId);
+        } catch (Exception e) {
+            log.warn("보관함 자동 저장 실패 (사용자: {}): {}", userId, e.getMessage());
+        }
+    }
+
+    // [수정된 부분] 파라미터를 byte[]로 변경하여 스코프 및 타입 이슈 해결
+    private AiDiaryResponse generateContentWithAi(byte[] imageBytes) {
         BeanOutputConverter<AiDiaryResponse> converter = new BeanOutputConverter<>(AiDiaryResponse.class);
         String systemPromptText = new PromptTemplate(systemPromptResource).render();
         String promptText = systemPromptText + "\n\n" + converter.getFormat();
 
         try {
-            Media imageMedia = new Media(MimeTypeUtils.IMAGE_JPEG, new ByteArrayResource(imageFile.getBytes()));
+            // ByteArrayResource를 사용하여 복사된 이미지 데이터 활용
+            Media imageMedia = new Media(MimeTypeUtils.IMAGE_JPEG, new ByteArrayResource(imageBytes));
             UserMessage userMessage = new UserMessage(promptText, List.of(imageMedia));
-            OpenAiChatOptions options = OpenAiChatOptions.builder().withTemperature(0.7).withModel("gpt-4o").build();
+            OpenAiChatOptions options = OpenAiChatOptions.builder()
+                    .withTemperature(0.7)
+                    .withModel("gpt-4o")
+                    .build();
+
             Prompt prompt = new Prompt(userMessage, options);
             String responseContent = chatModel.call(prompt).getResult().getOutput().getContent();
             return converter.convert(responseContent);
-        } catch (IOException e) {
-            log.error("Image processing failed", e);
+        } catch (Exception e) {
+            log.error("AI 생성 중 오류 발생", e);
             throw new RuntimeException("AI 생성 실패", e);
         }
     }
@@ -169,69 +207,33 @@ public class DiaryServiceImpl implements DiaryService {
         try { petClient.getPetInfo(petId); } catch (FeignException e) { throw new EntityNotFoundException(ErrorCode.PET_NOT_FOUND); }
     }
 
-    private void processDiaryImages(Diary diary) {
-        List<DiaryImage> images = diary.getImages();
-        if (images == null || images.isEmpty()) return;
-
-        List<StorageClient.PhotoRequest> newPhotos = images.stream()
-                .filter(img -> img.getSource() == ImageSource.GALLERY)
-                .map(img -> new StorageClient.PhotoRequest(img.getUserId(), img.getImageUrl()))
-                .collect(Collectors.toList());
-
-        if (!newPhotos.isEmpty()) {
-            try { storageClient.savePhotos(newPhotos); }
-            catch (Exception e) { log.warn("Storage Service Transfer Failed: {}", e.getMessage()); }
-        }
-    }
-
-    // [중요] 카카오 API 디버깅 로그 추가 및 로직 보강
     private String getAddressFromCoords(Double lat, Double lng) {
         try {
-            // API Key 확인 (로그에는 앞 5자리만 노출)
-            if (kakaoRestApiKey == null || kakaoRestApiKey.isEmpty()) {
-                log.error("Kakao API Key가 설정되지 않았습니다.");
-                return null;
-            }
-            String maskedKey = kakaoRestApiKey.length() > 5 ? kakaoRestApiKey.substring(0, 5) + "..." : "SHORT_KEY";
-            log.info("Kakao API Key Loaded: {}", maskedKey);
+            if (kakaoRestApiKey == null || kakaoRestApiKey.isEmpty()) return null;
 
-            // x=경도(lng), y=위도(lat) 순서 확인
             String url = String.format("https://dapi.kakao.com/v2/local/geo/coord2regioncode.json?x=%s&y=%s", lng, lat);
-            log.info("Kakao API URL: {}", url);
-
             HttpHeaders headers = new HttpHeaders();
             headers.set("Authorization", "KakaoAK " + kakaoRestApiKey);
             HttpEntity<String> entity = new HttpEntity<>(headers);
 
             ResponseEntity<String> response = restTemplate.exchange(url, HttpMethod.GET, entity, String.class);
 
-            // 응답 로그 확인 (성공 시 JSON 전체 출력)
-            log.debug("Kakao API Response: {}", response.getBody());
-
             ObjectMapper mapper = new ObjectMapper();
             JsonNode root = mapper.readTree(response.getBody());
             JsonNode documents = root.path("documents");
 
             if (documents.isArray() && documents.size() > 0) {
-                // 1. 행정동(H) 찾기 (가장 정확한 동 단위)
                 for (JsonNode doc : documents) {
                     if ("H".equals(doc.path("region_type").asText())) {
-                        String address = doc.path("address_name").asText();
-                        log.info("Found Region(H): {}", address);
-                        return address;
+                        return doc.path("address_name").asText();
                     }
                 }
-                // 2. 행정동 없으면 법정동(B) 반환
-                String address = documents.get(0).path("address_name").asText();
-                log.info("Found Region(B - Fallback): {}", address);
-                return address;
-            } else {
-                log.warn("Kakao API 응답에 documents가 비어있습니다. 좌표가 해상이나 지원되지 않는 지역일 수 있습니다.");
+                return documents.get(0).path("address_name").asText();
             }
         } catch (Exception e) {
-            log.error("Kakao Address Conversion Failed. Error: {}", e.getMessage(), e);
+            log.error("Kakao Address Conversion Failed: {}", e.getMessage());
         }
-        return null; // 변환 실패
+        return null;
     }
 
     @Override

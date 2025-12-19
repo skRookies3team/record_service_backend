@@ -43,6 +43,7 @@ public class DiaryController {
         Long diaryId = diaryService.createAiDiary(
                 request.getUserId(),
                 request.getPetId(),
+                request.getPhotoArchiveId(), // photoArchiveId 추가
                 image,
                 request.getVisibility(),
                 request.getLocationName(),
