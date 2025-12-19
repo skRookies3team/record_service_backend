@@ -2,9 +2,9 @@ package com.petlog.record.service.impl;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.petlog.record.client.PetServiceClient;
-import com.petlog.record.client.StorageServiceClient;
-import com.petlog.record.client.UserServiceClient;
+import com.petlog.record.client.PetClient;
+import com.petlog.record.client.StorageClient;
+import com.petlog.record.client.UserClient;
 import com.petlog.record.dto.request.DiaryRequest;
 import com.petlog.record.dto.response.AiDiaryResponse;
 import com.petlog.record.dto.response.DiaryResponse;
@@ -54,11 +54,11 @@ import java.util.stream.Collectors;
 public class DiaryServiceImpl implements DiaryService {
 
     private final DiaryRepository diaryRepository;
-    private final UserServiceClient userClient;
-    private final PetServiceClient petClient;
+    private final UserClient userClient;
+    private final PetClient petClient;
 
     @Qualifier("mockStorageServiceClient")
-    private final StorageServiceClient storageServiceClient;
+    private final StorageClient storageClient;
 
     private final ChatModel chatModel;
     private final WeatherService weatherService;
@@ -173,13 +173,13 @@ public class DiaryServiceImpl implements DiaryService {
         List<DiaryImage> images = diary.getImages();
         if (images == null || images.isEmpty()) return;
 
-        List<StorageServiceClient.PhotoRequest> newPhotos = images.stream()
+        List<StorageClient.PhotoRequest> newPhotos = images.stream()
                 .filter(img -> img.getSource() == ImageSource.GALLERY)
-                .map(img -> new StorageServiceClient.PhotoRequest(img.getUserId(), img.getImageUrl()))
+                .map(img -> new StorageClient.PhotoRequest(img.getUserId(), img.getImageUrl()))
                 .collect(Collectors.toList());
 
         if (!newPhotos.isEmpty()) {
-            try { storageServiceClient.savePhotos(newPhotos); }
+            try { storageClient.savePhotos(newPhotos); }
             catch (Exception e) { log.warn("Storage Service Transfer Failed: {}", e.getMessage()); }
         }
     }

@@ -10,7 +10,7 @@ import java.util.List;
 // 외부 보관함 서비스 호출 (application.yml에 external.storage-service.url 설정 필요)
 @Profile("!local-test")
 @FeignClient(name = "storage-service", url = "${external.storage-service.url}")
-public interface StorageServiceClient {
+public interface StorageClient {
 
     // 외부 보관함에 사진 저장 요청
     @PostMapping("/api/storage/photos")

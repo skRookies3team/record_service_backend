@@ -9,7 +9,7 @@ import java.util.stream.Collectors;
 // [수정] 빈 이름을 명시적으로 지정
 @Profile({"test", "local-test"}) // 'local-test' 프로필이 활성화될 때만 이 빈을 로드함
 @Component("mockStorageServiceClient")
-public class MockStorageServiceClient implements StorageServiceClient {
+public class MockStorageClient implements StorageClient {
 
     @Override
     public void savePhotos(List<PhotoRequest> photos) {

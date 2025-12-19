@@ -7,7 +7,7 @@ import org.springframework.web.bind.annotation.PathVariable;
 
 // User Service 호출
 @FeignClient(name = "user-service", url = "${external.user-service.url}")
-public interface UserServiceClient {
+public interface UserClient {
 
     /**
      * 사용자 존재 여부 확인
