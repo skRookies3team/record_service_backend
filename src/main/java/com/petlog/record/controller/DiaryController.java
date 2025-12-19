@@ -18,6 +18,7 @@ import org.springframework.web.multipart.MultipartFile;
 
 import java.net.URI;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 @Slf4j
@@ -33,7 +34,7 @@ public class DiaryController {
     @PostMapping(value = "/ai", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public ResponseEntity<Map<String, Object>> createAiDiary(
             @Parameter(description = "업로드할 이미지 파일", content = @Content(mediaType = MediaType.MULTIPART_FORM_DATA_VALUE))
-            @RequestPart("image") MultipartFile image,
+            @RequestPart("image") List<MultipartFile> images,
 
             @Parameter(description = "일기 생성 요청 데이터 (JSON)", content = @Content(mediaType = MediaType.APPLICATION_JSON_VALUE, schema = @Schema(implementation = DiaryRequest.Create.class)))
             @Valid @RequestPart("data") DiaryRequest.Create request
@@ -44,7 +45,7 @@ public class DiaryController {
                 request.getUserId(),
                 request.getPetId(),
                 request.getPhotoArchiveId(), // photoArchiveId 추가
-                image,
+                images,
                 request.getVisibility(),
                 request.getLocationName(),
                 request.getLatitude(),

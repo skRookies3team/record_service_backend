@@ -45,7 +45,6 @@ import org.springframework.web.multipart.MultipartFile;
 import java.io.IOException;
 import java.time.LocalDate;
 import java.util.List;
-import java.util.stream.Collectors;
 
 @Slf4j
 @Service
@@ -70,52 +69,45 @@ public class DiaryServiceImpl implements DiaryService {
 
     @Override
     @Transactional
-    public Long createAiDiary(Long userId, Long petId, Long photoArchiveId, MultipartFile imageFile,
+    public Long createAiDiary(Long userId, Long petId, Long photoArchiveId, List<MultipartFile> imageFiles,
                               Visibility visibility, String locationName,
                               Double latitude, Double longitude, LocalDate date) {
-        log.info("AI Diary creation started for user: {}, pet: {}", userId, petId);
+
+        log.info("AI Diary creation started for user: {}, pet: {}, images: {}장", userId, petId, imageFiles.size());
 
         validateUserAndPet(userId, petId);
 
-        // [중요] MultipartFile의 InputStream은 한 번만 읽을 수 있으므로 byte[]로 복사하여 재사용합니다.
-        byte[] imageBytes;
+        // 1. 유저 서비스(8080) 호출하여 S3에 여러 장 업로드
+        List<String> uploadedImageUrls;
         try {
-            imageBytes = imageFile.getBytes();
+            // imageClient를 통해 파일 리스트 전체를 전달
+            uploadedImageUrls = imageClient.uploadImageToS3(imageFiles);
+            if (uploadedImageUrls == null || uploadedImageUrls.isEmpty()) {
+                throw new BusinessException(ErrorCode.UPLOAD_FILE_IO_EXCEPTION);
+            }
+            log.info("S3 업로드 완료: {}개의 URL 획득", uploadedImageUrls.size());
+        } catch (Exception e) {
+            log.error("S3 업로드 호출 실패: {}", e.getMessage());
+            throw new RuntimeException("이미지 서버 연동 실패");
+        }
+
+        // 2. AI 일기 내용 생성 (분석은 첫 번째 이미지를 기준으로 수행)
+        AiDiaryResponse aiResponse;
+        try {
+            byte[] firstImageBytes = imageFiles.get(0).getBytes();
+            aiResponse = generateContentWithAi(firstImageBytes);
         } catch (IOException e) {
             log.error("파일 데이터를 읽는 중 오류 발생", e);
             throw new BusinessException(ErrorCode.UPLOAD_FILE_IO_EXCEPTION);
         }
 
-        // 1. 유저 서비스(8080)의 S3 업로드 API 호출
-        String uploadedImageUrl;
-        try {
-            // S3 업로드 (유저 서비스 호출)
-            List<String> imageUrls = imageClient.uploadImageToS3(List.of(imageFile));
-            if (imageUrls == null || imageUrls.isEmpty()) {
-                throw new BusinessException(ErrorCode.UPLOAD_FILE_IO_EXCEPTION);
-            }
-            uploadedImageUrl = imageUrls.get(0);
-            log.info("S3 업로드 성공: {}", uploadedImageUrl);
-        } catch (Exception e) {
-            log.error("유저 서비스 S3 업로드 호출 실패: {}", e.getMessage());
-            throw new RuntimeException("이미지 서버 연동 실패");
-        }
-
-        // 2. AI 일기 내용 생성 (복사해둔 byte[] 전달)
-        AiDiaryResponse aiResponse = generateContentWithAi(imageBytes);
-
         // 3. 날씨 정보 처리
         String weatherInfo = "맑음";
         LocalDate targetDate = date != null ? date : LocalDate.now();
-
         try {
             if (latitude != null && longitude != null && latitude != 0 && longitude != 0) {
-                if (targetDate.isEqual(LocalDate.now())) {
-                    int[] grid = LatXLngY.convert(latitude, longitude);
-                    weatherInfo = weatherService.getCurrentWeather(grid[0], grid[1]);
-                } else if (targetDate.isBefore(LocalDate.now())) {
-                    weatherInfo = weatherService.getPastWeather(targetDate, latitude, longitude);
-                }
+                int[] grid = LatXLngY.convert(latitude, longitude);
+                weatherInfo = weatherService.getCurrentWeather(grid[0], grid[1]);
             }
         } catch (Exception e) {
             log.warn("Weather API call failed: {}", e.getMessage());
@@ -123,69 +115,63 @@ public class DiaryServiceImpl implements DiaryService {
 
         // 4. 주소 변환
         String finalLocationName = locationName;
-        if ((finalLocationName == null || finalLocationName.isEmpty()) && latitude != null && longitude != null && latitude != 0 && longitude != 0) {
-            log.info("좌표 기반 주소 변환 시도: lat={}, lng={}", latitude, longitude);
+        if ((finalLocationName == null || finalLocationName.isEmpty()) && latitude != null && longitude != null) {
             finalLocationName = getAddressFromCoords(latitude, longitude);
-            log.info("주소 변환 결과: {}", finalLocationName);
-        } else if (finalLocationName == null) {
-            finalLocationName = "위치 정보 없음";
         }
 
-        // 5. 일기 저장
+        // 5. 일기(Diary) 엔티티 생성 및 이미지(DiaryImage) 목록 추가
         Diary diary = Diary.builder()
                 .userId(userId)
                 .petId(petId)
-                .photoArchiveId(photoArchiveId) // [추가] DTO에서 받은 보관함 ID 설정
+                .photoArchiveId(photoArchiveId)
                 .content(aiResponse.getContent())
                 .mood(aiResponse.getMood())
                 .weather(weatherInfo)
                 .isAiGen(true)
-                .visibility(visibility)
+                .visibility(visibility != null ? visibility : Visibility.PRIVATE)
                 .latitude(latitude)
                 .longitude(longitude)
-                .locationName(finalLocationName)
+                .locationName(finalLocationName != null ? finalLocationName : "위치 정보 없음")
                 .date(targetDate)
                 .build();
 
-        DiaryImage diaryImage = DiaryImage.builder()
-                .imageUrl(uploadedImageUrl)
-                .userId(userId)
-                .imgOrder(1)
-                .mainImage(true)
-                .source(ImageSource.GALLERY)
-                .build();
+        // [핵심] 업로드된 모든 URL을 순회하며 DiaryImage 엔티티를 생성하고 Diary에 추가
+        for (int i = 0; i < uploadedImageUrls.size(); i++) {
+            DiaryImage diaryImage = DiaryImage.builder()
+                    .imageUrl(uploadedImageUrls.get(i))
+                    .userId(userId)
+                    .imgOrder(i + 1)
+                    .mainImage(i == 0) // 첫 번째 이미지를 대표(메인) 이미지로 설정
+                    .source(ImageSource.GALLERY)
+                    .build();
 
-        diary.addImage(diaryImage);
+            // Diary 엔티티 내부의 List<DiaryImage>에 추가 (CascadeType.ALL에 의해 함께 저장됨)
+            diary.addImage(diaryImage);
+        }
+
         Diary savedDiary = diaryRepository.save(diary);
 
-        // 6. 보관함(Archive) 서비스로 MultipartFile 직접 전송 자동화
-        autoArchiveDiaryImage(savedDiary.getUserId(), imageFile);
+        // 6. 보관함(Archive) 서비스로 자동 저장 연동
+        autoArchiveDiaryImages(savedDiary.getUserId(), imageFiles);
 
         return savedDiary.getDiaryId();
     }
 
-    /**
-     * 일기 이미지를 보관함에 자동으로 추가하는 메서드
-     */
-    private void autoArchiveDiaryImage(Long userId, MultipartFile imageFile) {
-        if (imageFile == null || imageFile.isEmpty()) return;
-
+    private void autoArchiveDiaryImages(Long userId, List<MultipartFile> imageFiles) {
         try {
-            imageClient.createArchive(userId, List.of(imageFile));
-            log.info("사용자 {}의 보관함에 일기 이미지가 자동 저장되었습니다.", userId);
+            imageClient.createArchive(userId, imageFiles);
+            log.info("사용자 {}의 보관함에 이미지 자동 저장 요청 완료", userId);
         } catch (Exception e) {
-            log.warn("보관함 자동 저장 실패 (사용자: {}): {}", userId, e.getMessage());
+            log.warn("보관함 자동 저장 실패: {}", e.getMessage());
         }
     }
 
-    // [수정된 부분] 파라미터를 byte[]로 변경하여 스코프 및 타입 이슈 해결
     private AiDiaryResponse generateContentWithAi(byte[] imageBytes) {
         BeanOutputConverter<AiDiaryResponse> converter = new BeanOutputConverter<>(AiDiaryResponse.class);
         String systemPromptText = new PromptTemplate(systemPromptResource).render();
         String promptText = systemPromptText + "\n\n" + converter.getFormat();
 
         try {
-            // ByteArrayResource를 사용하여 복사된 이미지 데이터 활용
             Media imageMedia = new Media(MimeTypeUtils.IMAGE_JPEG, new ByteArrayResource(imageBytes));
             UserMessage userMessage = new UserMessage(promptText, List.of(imageMedia));
             OpenAiChatOptions options = OpenAiChatOptions.builder()
@@ -203,35 +189,29 @@ public class DiaryServiceImpl implements DiaryService {
     }
 
     private void validateUserAndPet(Long userId, Long petId) {
-        try { userClient.getUserInfo(userId); } catch (FeignException e) { throw new EntityNotFoundException(ErrorCode.USER_NOT_FOUND); }
+        try { userClient.getUserInfo(userId); } catch (Exception e) { throw new EntityNotFoundException(ErrorCode.USER_NOT_FOUND); }
         try { petClient.getPetInfo(petId); } catch (FeignException e) { throw new EntityNotFoundException(ErrorCode.PET_NOT_FOUND); }
     }
 
     private String getAddressFromCoords(Double lat, Double lng) {
         try {
             if (kakaoRestApiKey == null || kakaoRestApiKey.isEmpty()) return null;
-
             String url = String.format("https://dapi.kakao.com/v2/local/geo/coord2regioncode.json?x=%s&y=%s", lng, lat);
             HttpHeaders headers = new HttpHeaders();
             headers.set("Authorization", "KakaoAK " + kakaoRestApiKey);
             HttpEntity<String> entity = new HttpEntity<>(headers);
-
             ResponseEntity<String> response = restTemplate.exchange(url, HttpMethod.GET, entity, String.class);
-
             ObjectMapper mapper = new ObjectMapper();
             JsonNode root = mapper.readTree(response.getBody());
             JsonNode documents = root.path("documents");
-
             if (documents.isArray() && documents.size() > 0) {
                 for (JsonNode doc : documents) {
-                    if ("H".equals(doc.path("region_type").asText())) {
-                        return doc.path("address_name").asText();
-                    }
+                    if ("H".equals(doc.path("region_type").asText())) return doc.path("address_name").asText();
                 }
                 return documents.get(0).path("address_name").asText();
             }
         } catch (Exception e) {
-            log.error("Kakao Address Conversion Failed: {}", e.getMessage());
+            log.error("Kakao Address Conversion Failed");
         }
         return null;
     }
@@ -248,13 +228,7 @@ public class DiaryServiceImpl implements DiaryService {
     public void updateDiary(Long diaryId, DiaryRequest.Update request) {
         Diary diary = diaryRepository.findById(diaryId)
                 .orElseThrow(() -> new EntityNotFoundException(ErrorCode.DIARY_NOT_FOUND));
-
-        diary.update(
-                request.getContent() != null ? request.getContent() : diary.getContent(),
-                request.getVisibility() != null ? request.getVisibility() : diary.getVisibility(),
-                request.getWeather() != null ? request.getWeather() : diary.getWeather(),
-                request.getMood() != null ? request.getMood() : diary.getMood()
-        );
+        diary.update(request.getContent(), request.getVisibility(), request.getWeather(), request.getMood());
     }
 
     @Override
