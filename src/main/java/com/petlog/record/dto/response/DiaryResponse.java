@@ -27,13 +27,15 @@ public class DiaryResponse {
     @Schema(description = "관련 펫 ID", example = "1")
     private Long petId;
 
+    @Schema(description = "관련 사진 보관함 ID", example = "10")
+    private Long photoArchiveId;
+
     @Schema(description = "일기 내용", example = "오늘 공원에서 산책하며 즐거운 시간을 보냈다.")
     private String content;
 
     @Schema(description = "위치 주소", example = "서울특별시 마포구...")
     private String locationName;
 
-    // [추가] 위치 정보 (선택)
     @Schema(description = "위도", example = "37.5665")
     private Double latitude;
 
@@ -61,16 +63,19 @@ public class DiaryResponse {
     @Schema(description = "첨부 이미지 목록")
     private List<Image> images;
 
-    // [핵심] Entity -> DTO 변환 로직 (Service에서 호출)
+    /**
+     * Entity -> DTO 변환 로직 (Service에서 호출)
+     */
     public static DiaryResponse fromEntity(Diary diary) {
         return DiaryResponse.builder()
                 .diaryId(diary.getDiaryId())
                 .userId(diary.getUserId())
                 .petId(diary.getPetId())
+                .photoArchiveId(diary.getPhotoArchiveId())
                 .content(diary.getContent())
                 .locationName(diary.getLocationName())
-                .latitude(diary.getLatitude())         // 위도
-                .longitude(diary.getLongitude())       // 경도
+                .latitude(diary.getLatitude())
+                .longitude(diary.getLongitude())
                 .visibility(diary.getVisibility())
                 .weather(diary.getWeather())
                 .mood(diary.getMood())
@@ -83,7 +88,9 @@ public class DiaryResponse {
                 .build();
     }
 
-    // [Inner DTO] 이미지 응답용
+    /**
+     * 다이어리 이미지 정보 DTO
+     */
     @Data
     @Builder
     @NoArgsConstructor
@@ -103,7 +110,6 @@ public class DiaryResponse {
         @Schema(description = "대표 이미지 여부", example = "true")
         private Boolean mainImage;
 
-        // Entity -> DTO 변환
         public static Image fromEntity(DiaryImage image) {
             return Image.builder()
                     .imageId(image.getImageId())

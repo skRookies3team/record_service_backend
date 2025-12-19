@@ -34,6 +34,12 @@ public enum ErrorCode {
     // ===  리캡 관련 ===
     RECAP_NOT_FOUND("RECAP_001", "해당 리캡을 찾을 수 없습니다.", HttpStatus.NOT_FOUND),
 
+    // === [IMAGE/FILE] 이미지 및 파일 관련 ===
+    UPLOAD_FILE_IO_EXCEPTION("IMAGE_001", "이미지 업로드 중 입출력 오류가 발생했습니다.", HttpStatus.INTERNAL_SERVER_ERROR),
+    IMAGE_NOT_FOUND("IMAGE_002", "이미지를 찾을 수 없습니다.", HttpStatus.NOT_FOUND),
+    INVALID_FILE_EXTENSION("IMAGE_003", "지원하지 않는 파일 확장자입니다.", HttpStatus.BAD_REQUEST),
+    FILE_NOT_EXIST("IMAGE_004", "파일이 존재하지 않습니다.", HttpStatus.BAD_REQUEST),
+
     // 서버 오류 (50X)
     INTERNAL_SERVER_ERROR("SERVER_001", "서버 내부 오류가 발생했습니다", HttpStatus.INTERNAL_SERVER_ERROR),
     DATABASE_ERROR("SERVER_002", "데이터베이스 오류가 발생했습니다", HttpStatus.INTERNAL_SERVER_ERROR),

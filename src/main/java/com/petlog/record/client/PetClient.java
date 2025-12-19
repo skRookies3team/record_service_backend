@@ -6,8 +6,8 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 
 // Pet Service 호출
-@FeignClient(name = "pet-service", url = "${external.pet-service.url}")
-public interface PetServiceClient {
+@FeignClient(name = "pet-service", url = "${PET_SERVICE_URL}")
+public interface PetClient {
 
     /**
      * 펫 존재 여부 확인

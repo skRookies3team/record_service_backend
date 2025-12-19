@@ -50,6 +50,8 @@ external:
     url: ${USER_SERVICE_URL}
   pet-service:
     url: ${PET_SERVICE_URL}
+  image-service:
+    url: ${IMAGE_SERVICE_URL}
   notification-service:
     url: ${NOTIFICATION_SERVICE_URL:http://localhost:8083}
   storage-service:

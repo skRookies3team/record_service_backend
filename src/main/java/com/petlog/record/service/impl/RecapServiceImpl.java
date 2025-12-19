@@ -1,6 +1,6 @@
 package com.petlog.record.service.impl;
 
-import com.petlog.record.client.NotificationServiceClient;
+import com.petlog.record.client.NotificationClient;
 import com.petlog.record.dto.request.RecapRequest;
 import com.petlog.record.dto.response.RecapResponse;
 import com.petlog.record.entity.Recap;
@@ -23,7 +23,7 @@ import java.util.stream.Collectors;
 public class RecapServiceImpl implements RecapService {
 
     private final RecapRepository recapRepository;
-    private final NotificationServiceClient notificationClient;
+    private final NotificationClient notificationClient;
 
     @Override
     @Transactional

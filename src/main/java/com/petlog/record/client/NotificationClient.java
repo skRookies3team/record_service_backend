@@ -6,7 +6,7 @@ import org.springframework.web.bind.annotation.RequestBody;
 
 // Notification service 호출
 @FeignClient(name = "notification-service", url = "${external.notification-service.url}")
-public interface NotificationServiceClient {
+public interface NotificationClient {
 
     @PostMapping("/api/notifications/send")
     void sendNotification(@RequestBody NotificationRequest request);
