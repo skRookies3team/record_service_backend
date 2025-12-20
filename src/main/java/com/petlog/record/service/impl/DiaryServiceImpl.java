@@ -22,6 +22,7 @@ import com.petlog.record.util.LatXLngY;
 import feign.FeignException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.ai.chat.messages.SystemMessage;
 import org.springframework.ai.chat.messages.UserMessage;
 import org.springframework.ai.chat.model.ChatModel;
 import org.springframework.ai.chat.prompt.Prompt;
@@ -44,6 +45,7 @@ import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
 import java.time.LocalDate;
+import java.util.ArrayList;
 import java.util.List;
 
 @Slf4j
@@ -91,15 +93,17 @@ public class DiaryServiceImpl implements DiaryService {
             throw new RuntimeException("이미지 서버 연동 실패");
         }
 
-        // 2. AI 일기 내용 생성 (분석은 첫 번째 이미지를 기준으로 수행)
-        AiDiaryResponse aiResponse;
-        try {
-            byte[] firstImageBytes = imageFiles.get(0).getBytes();
-            aiResponse = generateContentWithAi(firstImageBytes);
-        } catch (IOException e) {
-            log.error("파일 데이터를 읽는 중 오류 발생", e);
-            throw new BusinessException(ErrorCode.UPLOAD_FILE_IO_EXCEPTION);
-        }
+//        // 2. AI 일기 내용 생성 (분석은 첫 번째 이미지를 기준으로 수행)
+//        AiDiaryResponse aiResponse;
+//        try {
+//            byte[] firstImageBytes = imageFiles.get(0).getBytes();
+//            aiResponse = generateContentWithAi(firstImageBytes);
+//        } catch (IOException e) {
+//            log.error("파일 데이터를 읽는 중 오류 발생", e);
+//            throw new BusinessException(ErrorCode.UPLOAD_FILE_IO_EXCEPTION);
+//        }
+        // 2. [수정됨] AI 일기 내용 생성 - 업로드한 이미지 리스트 전체를 분석에 사용
+        AiDiaryResponse aiResponse = generateContentWithAi(imageFiles);
 
         // 3. 날씨 정보 처리
         String weatherInfo = "맑음";
@@ -166,25 +170,84 @@ public class DiaryServiceImpl implements DiaryService {
         }
     }
 
-    private AiDiaryResponse generateContentWithAi(byte[] imageBytes) {
+//    private AiDiaryResponse generateContentWithAi(byte[] imageBytes) {
+//        BeanOutputConverter<AiDiaryResponse> converter = new BeanOutputConverter<>(AiDiaryResponse.class);
+//        String systemPromptText = new PromptTemplate(systemPromptResource).render();
+//        String promptText = systemPromptText + "\n\n" + converter.getFormat();
+//
+//        try {
+//            Media imageMedia = new Media(MimeTypeUtils.IMAGE_JPEG, new ByteArrayResource(imageBytes));
+//            UserMessage userMessage = new UserMessage(promptText, List.of(imageMedia));
+//            OpenAiChatOptions options = OpenAiChatOptions.builder()
+//                    .withTemperature(0.7)
+//                    .withModel("gpt-4o")
+//                    .build();
+//
+//            Prompt prompt = new Prompt(userMessage, options);
+//            String responseContent = chatModel.call(prompt).getResult().getOutput().getContent();
+//            return converter.convert(responseContent);
+//        } catch (Exception e) {
+//            log.error("AI 생성 중 오류 발생", e);
+//            throw new RuntimeException("AI 생성 실패", e);
+//        }
+//    }
+
+    /**
+     * [수정됨] 여러 이미지를 분석하여 AI 일기 생성
+     */
+    private AiDiaryResponse generateContentWithAi(List<MultipartFile> imageFiles) {
         BeanOutputConverter<AiDiaryResponse> converter = new BeanOutputConverter<>(AiDiaryResponse.class);
-        String systemPromptText = new PromptTemplate(systemPromptResource).render();
-        String promptText = systemPromptText + "\n\n" + converter.getFormat();
+
+        // 1. 기본 시스템 프롬프트 렌더링
+        String baseSystemPrompt = new PromptTemplate(systemPromptResource).render();
+
+        // 2. 여러 장 분석을 위한 추가 지시문 (시스템 성격)
+        String multiImageInstruction = String.format(
+                "\n\n[중요 지시사항]\n" +
+                        "현재 사용자가 총 %d장의 사진을 업로드했습니다.\n" +
+                        "1. 모든 사진을 순서대로 분석하여 하나의 연결된 스토리를 만드세요.\n" +
+                        "2. 특정 사진 한 장에만 집중하지 말고, 각 사진에 나타난 장소의 변화나 반려동물의 다양한 행동을 일기에 모두 포함하세요.\n" +
+                        "3. 만약 사진들의 장소가 다르다면 이동 과정이나 시간의 흐름을 상상하여 풍성하게 작성하세요.",
+                imageFiles.size()
+        );
+
+        // 시스템 메시지 구성 (지침 + 멀티이미지 규칙)
+        SystemMessage systemMessage = new SystemMessage(baseSystemPrompt + multiImageInstruction);
 
         try {
-            Media imageMedia = new Media(MimeTypeUtils.IMAGE_JPEG, new ByteArrayResource(imageBytes));
-            UserMessage userMessage = new UserMessage(promptText, List.of(imageMedia));
+            List<Media> mediaList = new ArrayList<>();
+            for (MultipartFile file : imageFiles) {
+                log.info("이미지 로드 중: {} ({} bytes)", file.getOriginalFilename(), file.getSize());
+                mediaList.add(new Media(
+                        MimeTypeUtils.IMAGE_JPEG,
+                        new ByteArrayResource(file.getBytes())
+                ));
+            }
+
+            // 유저 메시지 구성 (출력 형식 지시 + 이미지 데이터)
+            String userInstruction = "제공된 이미지들을 분석하여 정해진 JSON 형식으로 응답하세요.\n" + converter.getFormat();
+            UserMessage userMessage = new UserMessage(userInstruction, mediaList);
+
+            log.info("AI 모델(gpt-4o)에 {}장의 이미지와 분석 요청을 전송합니다.", mediaList.size());
+
+            // 3. SystemMessage와 UserMessage를 함께 전달
             OpenAiChatOptions options = OpenAiChatOptions.builder()
-                    .withTemperature(0.7)
+                    .withTemperature(0.6) // 창의성과 일관성의 균형
                     .withModel("gpt-4o")
                     .build();
 
-            Prompt prompt = new Prompt(userMessage, options);
+            // [핵심] 메시지 리스트로 Prompt 생성
+            Prompt prompt = new Prompt(List.of(systemMessage, userMessage), options);
+
             String responseContent = chatModel.call(prompt).getResult().getOutput().getContent();
+
+            // AI가 실제로 분석을 어떻게 했는지 로그로 확인 (디버깅용)
+            log.debug("AI Raw Response: {}", responseContent);
+
             return converter.convert(responseContent);
         } catch (Exception e) {
-            log.error("AI 생성 중 오류 발생", e);
-            throw new RuntimeException("AI 생성 실패", e);
+            log.error("AI 멀티 이미지 분석 및 일기 생성 중 오류 발생", e);
+            throw new RuntimeException("AI 일기 생성 실패: " + e.getMessage(), e);
         }
     }
 
