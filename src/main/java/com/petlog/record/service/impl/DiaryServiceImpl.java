@@ -15,6 +15,7 @@ import com.petlog.record.entity.Visibility;
 import com.petlog.record.exception.BusinessException;
 import com.petlog.record.exception.EntityNotFoundException;
 import com.petlog.record.exception.ErrorCode;
+import com.petlog.record.infrastructure.kafka.DiaryEventProducer;
 import com.petlog.record.repository.DiaryRepository;
 import com.petlog.record.service.DiaryService;
 import com.petlog.record.service.WeatherService;
@@ -45,7 +46,6 @@ import org.springframework.util.MimeTypeUtils;
 import org.springframework.web.client.RestTemplate;
 import org.springframework.web.multipart.MultipartFile;
 
-import java.io.IOException;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -62,13 +62,13 @@ public class DiaryServiceImpl implements DiaryService {
     private final UserClient userClient;
     private final PetClient petClient;
     private final ImageClient imageClient;
-
     private final ChatModel chatModel;
     private final WeatherService weatherService;
     private final RestTemplate restTemplate;
 
-    // [Milvus] VectorStore 주입 (Spring AI가 설정파일 기반으로 자동 구성)
-    private final VectorStore vectorStore;
+    // 인프라 스트럭처 주입
+    private final VectorStore vectorStore;                // Milvus 저장용
+    private final DiaryEventProducer diaryEventProducer;  // Kafka 이벤트 발행용
 
     @Value("classpath:prompts/diary-system.st")
     private Resource systemPromptResource;
@@ -76,225 +76,145 @@ public class DiaryServiceImpl implements DiaryService {
     @Value("${kakao.rest-api-key}")
     private String kakaoRestApiKey;
 
+    /**
+     * [STEP 1] AI 일기 생성 및 DB 임시 저장
+     * 이미지를 업로드하고 AI 일기 초안을 작성하여 PostgreSQL에만 저장합니다.
+     */
     @Override
     @Transactional
     public Long createAiDiary(Long userId, Long petId, Long photoArchiveId, List<MultipartFile> imageFiles,
                               Visibility visibility, String locationName,
                               Double latitude, Double longitude, LocalDate date) {
 
-        log.info("AI Diary creation started for user: {}, pet: {}, images: {}장", userId, petId, imageFiles.size());
+        log.info("AI Diary Step 1: Generating draft for user: {}", userId);
 
         validateUserAndPet(userId, petId);
 
-        // 1. 유저 서비스(8080) 호출하여 S3에 여러 장 업로드
-        List<String> uploadedImageUrls;
-        try {
-            // imageClient를 통해 파일 리스트 전체를 전달
-            uploadedImageUrls = imageClient.uploadImageToS3(imageFiles);
-            if (uploadedImageUrls == null || uploadedImageUrls.isEmpty()) {
-                throw new BusinessException(ErrorCode.UPLOAD_FILE_IO_EXCEPTION);
-            }
-            log.info("S3 업로드 완료: {}개의 URL 획득", uploadedImageUrls.size());
-        } catch (Exception e) {
-            log.error("S3 업로드 호출 실패: {}", e.getMessage());
-            throw new RuntimeException("이미지 서버 연동 실패");
-        }
+        // 1. S3 이미지 업로드
+        List<String> uploadedImageUrls = imageClient.uploadImageToS3(imageFiles);
 
-//        // 2. AI 일기 내용 생성 (분석은 첫 번째 이미지를 기준으로 수행)
-//        AiDiaryResponse aiResponse;
-//        try {
-//            byte[] firstImageBytes = imageFiles.get(0).getBytes();
-//            aiResponse = generateContentWithAi(firstImageBytes);
-//        } catch (IOException e) {
-//            log.error("파일 데이터를 읽는 중 오류 발생", e);
-//            throw new BusinessException(ErrorCode.UPLOAD_FILE_IO_EXCEPTION);
-//        }
-        // 2. [수정됨] AI 일기 내용 생성 - 업로드한 이미지 리스트 전체를 분석에 사용
+        // 2. AI 멀티 이미지 분석 및 내용 생성
         AiDiaryResponse aiResponse = generateContentWithAi(imageFiles);
 
         // 3. 날씨 정보 처리
-        String weatherInfo = "맑음";
-        LocalDate targetDate = date != null ? date : LocalDate.now();
-        try {
-            if (latitude != null && longitude != null && latitude != 0 && longitude != 0) {
-                int[] grid = LatXLngY.convert(latitude, longitude);
-                weatherInfo = weatherService.getCurrentWeather(grid[0], grid[1]);
-            }
-        } catch (Exception e) {
-            log.warn("Weather API call failed: {}", e.getMessage());
-        }
+        String weatherInfo = fetchWeatherInfo(latitude, longitude);
 
         // 4. 주소 변환
-        String finalLocationName = locationName;
-        if ((finalLocationName == null || finalLocationName.isEmpty()) && latitude != null && longitude != null) {
-            finalLocationName = getAddressFromCoords(latitude, longitude);
-        }
+        String finalLocationName = (locationName == null || locationName.isEmpty())
+                ? getAddressFromCoords(latitude, longitude) : locationName;
 
-        // 5. 일기(Diary) 엔티티 생성 및 이미지(DiaryImage) 목록 추가
+        // 5. Diary 엔티티 생성 및 저장
         Diary diary = Diary.builder()
-                .userId(userId)
-                .petId(petId)
-                .photoArchiveId(photoArchiveId)
-                .content(aiResponse.getContent())
-                .mood(aiResponse.getMood())
-                .weather(weatherInfo)
-                .isAiGen(true)
+                .userId(userId).petId(petId).photoArchiveId(photoArchiveId)
+                .content(aiResponse.getContent()).mood(aiResponse.getMood())
+                .weather(weatherInfo).isAiGen(true)
                 .visibility(visibility != null ? visibility : Visibility.PRIVATE)
-                .latitude(latitude)
-                .longitude(longitude)
+                .latitude(latitude).longitude(longitude)
                 .locationName(finalLocationName != null ? finalLocationName : "위치 정보 없음")
-                .date(targetDate)
+                .date(date != null ? date : LocalDate.now())
                 .build();
 
-        // [핵심] 업로드된 모든 URL을 순회하며 DiaryImage 엔티티를 생성하고 Diary에 추가
         for (int i = 0; i < uploadedImageUrls.size(); i++) {
-            DiaryImage diaryImage = DiaryImage.builder()
+            diary.addImage(DiaryImage.builder()
                     .imageUrl(uploadedImageUrls.get(i))
-                    .userId(userId)
-                    .imgOrder(i + 1)
-                    .mainImage(i == 0) // 첫 번째 이미지를 대표(메인) 이미지로 설정
-                    .source(ImageSource.GALLERY)
-                    .build();
-
-            // Diary 엔티티 내부의 List<DiaryImage>에 추가 (CascadeType.ALL에 의해 함께 저장됨)
-            diary.addImage(diaryImage);
+                    .userId(userId).imgOrder(i + 1)
+                    .mainImage(i == 0).source(ImageSource.GALLERY).build());
         }
 
         Diary savedDiary = diaryRepository.save(diary);
 
-        // 6. 보관함(Archive) 서비스로 자동 저장 연동
+        // 보관함 자동 저장 요청
         autoArchiveDiaryImages(savedDiary.getUserId(), imageFiles);
-
-        // 7. [Milvus] 벡터 DB에 일기 내용 저장 (검색/RAG용)
-        saveDiaryToVectorDB(savedDiary);
 
         return savedDiary.getDiaryId();
     }
 
     /**
-     * [Milvus] 생성된 일기를 벡터 DB에 저장하는 메서드
-     * Spring AI의 Document 객체로 변환하여 VectorStore에 저장합니다.
+     * [STEP 2] 사용자 일기 확정 및 외부 시스템 동기화
+     * 사용자가 '저장' 버튼을 눌렀을 때 Milvus에 저장하고 Kafka 이벤트를 발행합니다.
+     */
+    @Override
+    @Transactional
+    public DiaryResponse confirmAndPublishDiary(Long diaryId) {
+        log.info("AI Diary Step 2: Publishing confirmed diaryId: {}", diaryId);
+
+        Diary diary = diaryRepository.findById(diaryId)
+                .orElseThrow(() -> new EntityNotFoundException(ErrorCode.DIARY_NOT_FOUND));
+
+        // 1. Milvus 벡터 DB 저장 (검색용)
+        saveDiaryToVectorDB(diary);
+
+        // 2. Kafka 이벤트 발행 (Healthcare Service 전송)
+        try {
+            String firstImageUrl = diary.getImages().isEmpty() ? null : diary.getImages().get(0).getImageUrl();
+
+            diaryEventProducer.publishDiaryCreatedEvent(
+                    diary.getDiaryId(),
+                    diary.getUserId(),
+                    diary.getPetId(),
+                    diary.getContent(),
+                    firstImageUrl
+            );
+            log.info("✅ Kafka event published for diaryId: {}", diaryId);
+        } catch (Exception e) {
+            log.error("❌ Kafka publishing failed, but continuing: {}", e.getMessage());
+        }
+
+        return DiaryResponse.fromEntity(diary);
+    }
+
+    /**
+     * Milvus Vector DB 저장 로직
      */
     private void saveDiaryToVectorDB(Diary diary) {
         try {
-            log.info("Milvus Vector DB 저장 시작 - DiaryId: {}", diary.getDiaryId());
-
-            // 1. 메타데이터 생성 (검색 시 필터링에 사용할 데이터)
             Map<String, Object> metadata = new HashMap<>();
             metadata.put("userId", diary.getUserId());
-            metadata.put("petId", diary.getPetId());
             metadata.put("diaryId", diary.getDiaryId());
             metadata.put("date", diary.getDate().toString());
-            metadata.put("mood", diary.getMood());
-            if (diary.getWeather() != null) metadata.put("weather", diary.getWeather());
-            if (diary.getLocationName() != null) metadata.put("location", diary.getLocationName());
 
-            // 2. Document 생성 (내용 + 메타데이터)
-            // Embedding은 VectorStore가 설정된 모델(OpenAI 등)을 사용해 자동으로 수행함
             Document document = new Document(diary.getContent(), metadata);
-
-            // 3. 저장
             vectorStore.add(List.of(document));
-
-            log.info("Milvus 저장 완료");
-
+            log.info("✅ Successfully saved to Milvus");
         } catch (Exception e) {
-            // 벡터 DB 저장이 실패해도 메인 트랜잭션(RDB 저장)은 롤백되지 않도록 로그만 남김 (선택 사항)
-            log.error("Milvus Vector DB 저장 실패: {}", e.getMessage(), e);
-            // 필요 시 throw new BusinessException(ErrorCode.VECTOR_STORE_ERROR);
+            log.error("❌ Milvus save failed: {}", e.getMessage());
         }
     }
-
-
-
-    private void autoArchiveDiaryImages(Long userId, List<MultipartFile> imageFiles) {
-        try {
-            imageClient.createArchive(userId, imageFiles);
-            log.info("사용자 {}의 보관함에 이미지 자동 저장 요청 완료", userId);
-        } catch (Exception e) {
-            log.warn("보관함 자동 저장 실패: {}", e.getMessage());
-        }
-    }
-
-//    private AiDiaryResponse generateContentWithAi(byte[] imageBytes) {
-//        BeanOutputConverter<AiDiaryResponse> converter = new BeanOutputConverter<>(AiDiaryResponse.class);
-//        String systemPromptText = new PromptTemplate(systemPromptResource).render();
-//        String promptText = systemPromptText + "\n\n" + converter.getFormat();
-//
-//        try {
-//            Media imageMedia = new Media(MimeTypeUtils.IMAGE_JPEG, new ByteArrayResource(imageBytes));
-//            UserMessage userMessage = new UserMessage(promptText, List.of(imageMedia));
-//            OpenAiChatOptions options = OpenAiChatOptions.builder()
-//                    .withTemperature(0.7)
-//                    .withModel("gpt-4o")
-//                    .build();
-//
-//            Prompt prompt = new Prompt(userMessage, options);
-//            String responseContent = chatModel.call(prompt).getResult().getOutput().getContent();
-//            return converter.convert(responseContent);
-//        } catch (Exception e) {
-//            log.error("AI 생성 중 오류 발생", e);
-//            throw new RuntimeException("AI 생성 실패", e);
-//        }
-//    }
 
     /**
-     * [수정됨] 여러 이미지를 분석하여 AI 일기 생성
+     * AI 멀티 이미지 분석 로직
      */
     private AiDiaryResponse generateContentWithAi(List<MultipartFile> imageFiles) {
         BeanOutputConverter<AiDiaryResponse> converter = new BeanOutputConverter<>(AiDiaryResponse.class);
+        String basePrompt = new PromptTemplate(systemPromptResource).render();
+        String instructions = String.format("\n\n이미지 %d장을 분석하여 하나의 스토리로 JSON 응답하세요.", imageFiles.size());
 
-        // 1. 기본 시스템 프롬프트 렌더링
-        String baseSystemPrompt = new PromptTemplate(systemPromptResource).render();
-
-        // 2. 여러 장 분석을 위한 추가 지시문 (시스템 성격)
-        String multiImageInstruction = String.format(
-                "\n\n[중요 지시사항]\n" +
-                        "현재 사용자가 총 %d장의 사진을 업로드했습니다.\n" +
-                        "1. 모든 사진을 순서대로 분석하여 하나의 연결된 스토리를 만드세요.\n" +
-                        "2. 특정 사진 한 장에만 집중하지 말고, 각 사진에 나타난 장소의 변화나 반려동물의 다양한 행동을 일기에 모두 포함하세요.\n" +
-                        "3. 만약 사진들의 장소가 다르다면 이동 과정이나 시간의 흐름을 상상하여 풍성하게 작성하세요.",
-                imageFiles.size()
-        );
-
-        // 시스템 메시지 구성 (지침 + 멀티이미지 규칙)
-        SystemMessage systemMessage = new SystemMessage(baseSystemPrompt + multiImageInstruction);
+        SystemMessage systemMessage = new SystemMessage(basePrompt + instructions);
 
         try {
             List<Media> mediaList = new ArrayList<>();
             for (MultipartFile file : imageFiles) {
-                log.info("이미지 로드 중: {} ({} bytes)", file.getOriginalFilename(), file.getSize());
-                mediaList.add(new Media(
-                        MimeTypeUtils.IMAGE_JPEG,
-                        new ByteArrayResource(file.getBytes())
-                ));
+                mediaList.add(new Media(MimeTypeUtils.IMAGE_JPEG, new ByteArrayResource(file.getBytes())));
             }
 
-            // 유저 메시지 구성 (출력 형식 지시 + 이미지 데이터)
-            String userInstruction = "제공된 이미지들을 분석하여 정해진 JSON 형식으로 응답하세요.\n" + converter.getFormat();
-            UserMessage userMessage = new UserMessage(userInstruction, mediaList);
+            UserMessage userMessage = new UserMessage("분석 결과 JSON 형식: " + converter.getFormat(), mediaList);
+            Prompt prompt = new Prompt(List.of(systemMessage, userMessage),
+                    OpenAiChatOptions.builder().withModel("gpt-4o").withTemperature(0.6).build());
 
-            log.info("AI 모델(gpt-4o)에 {}장의 이미지와 분석 요청을 전송합니다.", mediaList.size());
-
-            // 3. SystemMessage와 UserMessage를 함께 전달
-            OpenAiChatOptions options = OpenAiChatOptions.builder()
-                    .withTemperature(0.6) // 창의성과 일관성의 균형
-                    .withModel("gpt-4o")
-                    .build();
-
-            // [핵심] 메시지 리스트로 Prompt 생성
-            Prompt prompt = new Prompt(List.of(systemMessage, userMessage), options);
-
-            String responseContent = chatModel.call(prompt).getResult().getOutput().getContent();
-
-            // AI가 실제로 분석을 어떻게 했는지 로그로 확인 (디버깅용)
-            log.debug("AI Raw Response: {}", responseContent);
-
-            return converter.convert(responseContent);
+            return converter.convert(chatModel.call(prompt).getResult().getOutput().getContent());
         } catch (Exception e) {
-            log.error("AI 멀티 이미지 분석 및 일기 생성 중 오류 발생", e);
-            throw new RuntimeException("AI 일기 생성 실패: " + e.getMessage(), e);
+            throw new RuntimeException("AI 분석 실패: " + e.getMessage());
         }
+    }
+
+    // --- 기타 헬퍼 메서드 및 비즈니스 로직 (Update/Delete 등) ---
+
+    private String fetchWeatherInfo(Double lat, Double lng) {
+        if (lat == null || lng == null) return "맑음";
+        try {
+            int[] grid = LatXLngY.convert(lat, lng);
+            return weatherService.getCurrentWeather(grid[0], grid[1]);
+        } catch (Exception e) { return "맑음"; }
     }
 
     private void validateUserAndPet(Long userId, Long petId) {
@@ -304,56 +224,39 @@ public class DiaryServiceImpl implements DiaryService {
 
     private String getAddressFromCoords(Double lat, Double lng) {
         try {
-            if (kakaoRestApiKey == null || kakaoRestApiKey.isEmpty()) return null;
             String url = String.format("https://dapi.kakao.com/v2/local/geo/coord2regioncode.json?x=%s&y=%s", lng, lat);
             HttpHeaders headers = new HttpHeaders();
             headers.set("Authorization", "KakaoAK " + kakaoRestApiKey);
-            HttpEntity<String> entity = new HttpEntity<>(headers);
-            ResponseEntity<String> response = restTemplate.exchange(url, HttpMethod.GET, entity, String.class);
-            ObjectMapper mapper = new ObjectMapper();
-            JsonNode root = mapper.readTree(response.getBody());
-            JsonNode documents = root.path("documents");
-            if (documents.isArray() && documents.size() > 0) {
-                for (JsonNode doc : documents) {
-                    if ("H".equals(doc.path("region_type").asText())) return doc.path("address_name").asText();
-                }
-                return documents.get(0).path("address_name").asText();
-            }
-        } catch (Exception e) {
-            log.error("Kakao Address Conversion Failed");
-        }
-        return null;
+            ResponseEntity<String> response = restTemplate.exchange(url, HttpMethod.GET, new HttpEntity<>(headers), String.class);
+            JsonNode root = new ObjectMapper().readTree(response.getBody());
+            return root.path("documents").get(0).path("address_name").asText();
+        } catch (Exception e) { return "위치 정보 없음"; }
     }
 
-    @Override
-    public DiaryResponse getDiary(Long diaryId) {
-        Diary diary = diaryRepository.findById(diaryId)
-                .orElseThrow(() -> new EntityNotFoundException(ErrorCode.DIARY_NOT_FOUND));
-        return DiaryResponse.fromEntity(diary);
+    private void autoArchiveDiaryImages(Long userId, List<MultipartFile> imageFiles) {
+        try { imageClient.createArchive(userId, imageFiles); } catch (Exception e) { log.warn("보관함 연동 실패"); }
     }
 
     @Override
     @Transactional
     public void updateDiary(Long diaryId, DiaryRequest.Update request) {
-        Diary diary = diaryRepository.findById(diaryId)
-                .orElseThrow(() -> new EntityNotFoundException(ErrorCode.DIARY_NOT_FOUND));
+        Diary diary = diaryRepository.findById(diaryId).orElseThrow(() -> new EntityNotFoundException(ErrorCode.DIARY_NOT_FOUND));
         diary.update(request.getContent(), request.getVisibility(), request.getWeather(), request.getMood());
-
-        // [Milvus] 일기 내용이 수정되면 벡터 DB 내용도 갱신해야 함 (선택 구현)
-        // 기존 문서 삭제 후 재생성 로직 등이 필요할 수 있음
-        // vectorStore.delete(List.of(diaryId.toString()));
-        // saveDiaryToVectorDB(diary);
+        diaryEventProducer.publishDiaryUpdatedEvent(diary.getDiaryId(), diary.getUserId(), diary.getPetId(), diary.getContent());
     }
 
     @Override
     @Transactional
     public void deleteDiary(Long diaryId) {
-        Diary diary = diaryRepository.findById(diaryId)
-                .orElseThrow(() -> new EntityNotFoundException(ErrorCode.DIARY_NOT_FOUND));
+        Diary diary = diaryRepository.findById(diaryId).orElseThrow(() -> new EntityNotFoundException(ErrorCode.DIARY_NOT_FOUND));
+        Long uId = diary.getUserId();
+        Long pId = diary.getPetId();
         diaryRepository.delete(diary);
+        diaryEventProducer.publishDiaryDeletedEvent(diaryId, uId, pId);
+    }
 
-        // [Milvus] 벡터 DB에서도 삭제 (필터링 조건으로 삭제 지원 여부 확인 필요)
-        // Spring AI VectorStore 인터페이스는 ID 기반 삭제를 지원함
-        // vectorStore.delete(List.of(diaryId.toString())); // ID를 String으로 변환하여 삭제
+    @Override
+    public DiaryResponse getDiary(Long diaryId) {
+        return DiaryResponse.fromEntity(diaryRepository.findById(diaryId).orElseThrow(() -> new EntityNotFoundException(ErrorCode.DIARY_NOT_FOUND)));
     }
 }
