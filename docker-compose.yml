@@ -1,7 +1,8 @@
+version: '3.5'
+
 services:
+  # 1. PostgreSQL + PostGIS (공간 데이터 및 다중 DB 생성)
   postgres:
-    # [핵심 변경] 일반 'postgres' 대신 'postgis'가 설치된 이미지를 사용해야 합니다.
-    # alpine 버전은 용량이 작고 가볍습니다.
     image: postgis/postgis:15-3.4-alpine
     container_name: petlog_pg_master
     restart: always
@@ -13,8 +14,78 @@ services:
       POSTGRES_DB: postgres
     volumes:
       - pg_data:/var/lib/postgresql/data
-      # 초기화 스크립트 폴더가 있다면 연결 (선택 사항)
+      # [수정] 사용자님의 폴더 구조인 'initdb'를 매핑하여 내부의 .sql 파일들이 자동 실행되게 합니다.
       - ./initdb:/docker-entrypoint-initdb.d
+    networks:
+      - petlog-net
+
+  # 2. Milvus - etcd (메타데이터 관리)
+  etcd:
+    container_name: milvus-etcd
+    image: quay.io/coreos/etcd:v3.5.0
+    environment:
+      - ETCD_AUTO_COMPACTION_RETENTION_RENDER_BY_HOUR=1
+    volumes:
+      - milvus_etcd:/etcd
+    command: etcd -advertise-client-urls http://127.0.0.1:2379 -listen-client-urls http://0.0.0.0:2379 --data-dir /etcd
+    networks:
+      - petlog-net
+
+  # 3. Milvus - MinIO (데이터 저장소)
+  minio:
+    container_name: milvus-minio
+    image: minio/minio:RELEASE.2020-12-03T00-03-10Z
+    environment:
+      MINIO_ACCESS_KEY: minioadmin
+      MINIO_SECRET_KEY: minioadmin
+    volumes:
+      - milvus_minio:/export
+    command: server /export
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      interval: 30s
+      timeout: 20s
+      retries: 3
+    networks:
+      - petlog-net
+
+  # 4. Milvus - Standalone (메인 벡터 엔진)
+  standalone:
+    container_name: milvus-standalone
+    image: milvusdb/milvus:v2.3.0
+    command: ["milvus", "run", "standalone"]
+    environment:
+      ETCD_ENDPOINTS: etcd:2379
+      MINIO_ADDRESS: minio:9000
+    volumes:
+      - milvus_data:/var/lib/milvus
+    ports:
+      - "19530:19530"
+    depends_on:
+      - "etcd"
+      - "minio"
+    networks:
+      - petlog-net
+
+  # 5. Attu (Milvus GUI 대시보드)
+  attu:
+    container_name: milvus-attu
+    image: zilliz/attu:latest
+    environment:
+      MILVUS_URL: milvus-standalone:19530
+    ports:
+      - "8010:3000" # 게이트웨이(8000) 포트와 겹치지 않게 8010으로 설정
+    depends_on:
+      - "standalone"
+    networks:
+      - petlog-net
+
+networks:
+  petlog-net:
+    driver: bridge
 
 volumes:
   pg_data:
+  milvus_etcd:
+  milvus_minio:
+  milvus_data:

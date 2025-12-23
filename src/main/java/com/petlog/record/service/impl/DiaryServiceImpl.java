@@ -28,8 +28,10 @@ import org.springframework.ai.chat.model.ChatModel;
 import org.springframework.ai.chat.prompt.Prompt;
 import org.springframework.ai.chat.prompt.PromptTemplate;
 import org.springframework.ai.converter.BeanOutputConverter;
+import org.springframework.ai.document.Document;
 import org.springframework.ai.model.Media;
 import org.springframework.ai.openai.OpenAiChatOptions;
+import org.springframework.ai.vectorstore.VectorStore;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.io.ByteArrayResource;
 import org.springframework.core.io.Resource;
@@ -46,7 +48,9 @@ import org.springframework.web.multipart.MultipartFile;
 import java.io.IOException;
 import java.time.LocalDate;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 @Slf4j
 @Service
@@ -62,6 +66,9 @@ public class DiaryServiceImpl implements DiaryService {
     private final ChatModel chatModel;
     private final WeatherService weatherService;
     private final RestTemplate restTemplate;
+
+    // [Milvus] VectorStore 주입 (Spring AI가 설정파일 기반으로 자동 구성)
+    private final VectorStore vectorStore;
 
     @Value("classpath:prompts/diary-system.st")
     private Resource systemPromptResource;
@@ -158,8 +165,47 @@ public class DiaryServiceImpl implements DiaryService {
         // 6. 보관함(Archive) 서비스로 자동 저장 연동
         autoArchiveDiaryImages(savedDiary.getUserId(), imageFiles);
 
+        // 7. [Milvus] 벡터 DB에 일기 내용 저장 (검색/RAG용)
+        saveDiaryToVectorDB(savedDiary);
+
         return savedDiary.getDiaryId();
     }
+
+    /**
+     * [Milvus] 생성된 일기를 벡터 DB에 저장하는 메서드
+     * Spring AI의 Document 객체로 변환하여 VectorStore에 저장합니다.
+     */
+    private void saveDiaryToVectorDB(Diary diary) {
+        try {
+            log.info("Milvus Vector DB 저장 시작 - DiaryId: {}", diary.getDiaryId());
+
+            // 1. 메타데이터 생성 (검색 시 필터링에 사용할 데이터)
+            Map<String, Object> metadata = new HashMap<>();
+            metadata.put("userId", diary.getUserId());
+            metadata.put("petId", diary.getPetId());
+            metadata.put("diaryId", diary.getDiaryId());
+            metadata.put("date", diary.getDate().toString());
+            metadata.put("mood", diary.getMood());
+            if (diary.getWeather() != null) metadata.put("weather", diary.getWeather());
+            if (diary.getLocationName() != null) metadata.put("location", diary.getLocationName());
+
+            // 2. Document 생성 (내용 + 메타데이터)
+            // Embedding은 VectorStore가 설정된 모델(OpenAI 등)을 사용해 자동으로 수행함
+            Document document = new Document(diary.getContent(), metadata);
+
+            // 3. 저장
+            vectorStore.add(List.of(document));
+
+            log.info("Milvus 저장 완료");
+
+        } catch (Exception e) {
+            // 벡터 DB 저장이 실패해도 메인 트랜잭션(RDB 저장)은 롤백되지 않도록 로그만 남김 (선택 사항)
+            log.error("Milvus Vector DB 저장 실패: {}", e.getMessage(), e);
+            // 필요 시 throw new BusinessException(ErrorCode.VECTOR_STORE_ERROR);
+        }
+    }
+
+
 
     private void autoArchiveDiaryImages(Long userId, List<MultipartFile> imageFiles) {
         try {
@@ -292,6 +338,11 @@ public class DiaryServiceImpl implements DiaryService {
         Diary diary = diaryRepository.findById(diaryId)
                 .orElseThrow(() -> new EntityNotFoundException(ErrorCode.DIARY_NOT_FOUND));
         diary.update(request.getContent(), request.getVisibility(), request.getWeather(), request.getMood());
+
+        // [Milvus] 일기 내용이 수정되면 벡터 DB 내용도 갱신해야 함 (선택 구현)
+        // 기존 문서 삭제 후 재생성 로직 등이 필요할 수 있음
+        // vectorStore.delete(List.of(diaryId.toString()));
+        // saveDiaryToVectorDB(diary);
     }
 
     @Override
@@ -300,5 +351,9 @@ public class DiaryServiceImpl implements DiaryService {
         Diary diary = diaryRepository.findById(diaryId)
                 .orElseThrow(() -> new EntityNotFoundException(ErrorCode.DIARY_NOT_FOUND));
         diaryRepository.delete(diary);
+
+        // [Milvus] 벡터 DB에서도 삭제 (필터링 조건으로 삭제 지원 여부 확인 필요)
+        // Spring AI VectorStore 인터페이스는 ID 기반 삭제를 지원함
+        // vectorStore.delete(List.of(diaryId.toString())); // ID를 String으로 변환하여 삭제
     }
 }

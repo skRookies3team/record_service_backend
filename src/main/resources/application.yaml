@@ -5,33 +5,67 @@ spring:
   application:
     name: petlog
 
-  # 프로파일 설정 (기본적으로 dev 활성화, 배포 시 prod로 오버라이드)
   profiles:
     active: dev
 
   config:
     import: "optional:file:.env[.properties]"
 
-  # [중요] Spring AI 설정 (공통)
+
+
+  # Spring AI 설정
   ai:
     openai:
       api-key: ${OPENAI_API_KEY}
       chat:
         options:
           model: gpt-4o
+      embedding:
+        enabled: true  # ✅ OpenAI Embedding 활성화
+        options:
+          model: text-embedding-3-small  # 1536 차원
 
-  # 파일 업로드 제한 (User Service와 동일하게 맞춤)
+#    # AWS Bedrock 설정
+#    bedrock:
+#      aws:
+#        region: us-east-1 # 서울 리전으로 통일 권장 (us-east-1 사용 시 수정 가능)
+#        access-key: ${AWS_ACCESS_KEY}
+#        secret-key: ${AWS_SECRET_KEY}
+#      titan:
+#        embedding:
+#          enabled: true
+#          model: amazon.titan-embed-text-v2:0
+
+    # Milvus 설정
+    vectorstore:
+      milvus:
+        client:
+          host: localhost
+          port: 19530
+        collection-name: diary_collection
+        embedding-dimension: 1536
+        initialize-schema: true  # ✅ 컬렉션 자동 생성
+
+
+    attu:
+      container_name: milvus-attu
+      image: zilliz/attu:latest
+      environment:
+        MILVUS_URL: milvus-standalone:19530
+      ports:
+        - "8010:3000"
+      depends_on:
+        - "standalone"
+
   servlet:
     multipart:
       max-file-size: 10MB
       max-request-size: 10MB
 
-  # MongoDB 설정 (공통)
   data:
     mongodb:
       uri: "${MONGO_URI}"
 
-  # MSA Feign Client 설정 (공통)
   cloud:
     openfeign:
       client:
@@ -40,7 +74,6 @@ spring:
             connectTimeout: 5000
             readTimeout: 5000
 
-# === 외부 서비스 URL 설정 (공통) ===
 openapi:
   service:
     url: ${API_GATEWAY}
@@ -57,11 +90,9 @@ external:
   storage-service:
     url: ${STORAGE_SERVICE_URL:http://localhost:8084}
 
-  # 기상청 API
   weather:
     api-key: ${WEATHER_API_KEY}
     asos-api-key: ${ASOS_API_KEY}
 
-# Kakao API
 kakao:
   rest-api-key: ${KAKAO_REST_API_KEY}

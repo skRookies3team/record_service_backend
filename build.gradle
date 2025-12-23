@@ -1,6 +1,6 @@
 plugins {
     id 'java'
-    id 'org.springframework.boot' version '3.5.7' // 사용자 지정 버전 유지
+    id 'org.springframework.boot' version '3.5.7'
     id 'io.spring.dependency-management' version '1.1.7'
 }
 
@@ -33,54 +33,67 @@ ext {
 }
 
 dependencies {
-    // [2] Spring AI OpenAI Starter
+    // --- Spring AI ---
+    // AWS Bedrock (Titan 모델용)
+    implementation 'org.springframework.ai:spring-ai-bedrock-ai-spring-boot-starter'
+
+    // OpenAI (Chat GPT-4o용)
     implementation 'org.springframework.ai:spring-ai-openai-spring-boot-starter'
 
-    // Spring Boot Starters
+    // Milvus Vector Store (로깅 충돌 방지를 위한 exclude 추가)
+    implementation('org.springframework.ai:spring-ai-milvus-store-spring-boot-starter') {
+        exclude group: 'org.slf4j', module: 'slf4j-reload4j'
+        exclude group: 'ch.qos.reload4j', module: 'reload4j'
+    }
+
+    // --- Spring Boot Starters ---
     implementation 'org.springframework.boot:spring-boot-starter-data-jpa'
     implementation 'org.springframework.boot:spring-boot-starter-thymeleaf'
     implementation 'org.springframework.boot:spring-boot-starter-validation'
     implementation 'org.springframework.boot:spring-boot-starter-web'
     implementation 'org.springframework.boot:spring-boot-starter-security'
 
-    // Kafka
+    // --- Messaging & Cloud ---
     implementation 'org.springframework.kafka:spring-kafka'
-
-    // JWT
-    implementation 'io.jsonwebtoken:jjwt-api:0.12.3'
-    implementation 'io.jsonwebtoken:jjwt-impl:0.12.3'
-    implementation 'io.jsonwebtoken:jjwt-jackson:0.12.3'
-
-    // Swagger
-    implementation 'org.springdoc:springdoc-openapi-starter-webmvc-ui:2.7.0'
-
-    // 이 줄을 추가하여 swagger-annotations 버전을 강제로 2.2.25로 맞춥니다.
-    implementation 'io.swagger.core.v3:swagger-annotations-jakarta:2.2.25'
-
-    // Spring Cloud (Feign & LoadBalancer)
     implementation 'org.springframework.cloud:spring-cloud-starter-openfeign'
     implementation 'org.springframework.cloud:spring-cloud-starter-loadbalancer'
 
-    // PostGIS 공간 데이터(Point, Geometry) 처리를 위한 라이브러리 (위치 저장/조회 기능)
-    // 위치 기반 서비스(LBS) 및 PostGIS 연동
-    implementation 'org.hibernate:hibernate-spatial:6.2.13.Final'
+    // --- Security & JWT ---
+    implementation 'io.jsonwebtoken:jjwt-api:0.12.3'
+    runtimeOnly 'io.jsonwebtoken:jjwt-impl:0.12.3'
+    runtimeOnly 'io.jsonwebtoken:jjwt-jackson:0.12.3'
+
+    // --- API Documentation (Swagger) ---
+    implementation 'org.springdoc:springdoc-openapi-starter-webmvc-ui:2.7.0'
+    implementation 'io.swagger.core.v3:swagger-annotations-jakarta:2.2.25'
+
+    // --- Database & GIS ---
+    // [수정] Hibernate Core 6.6 버전과 호환되도록 버전을 명시하지 않거나 최신화합니다.
+    implementation 'org.hibernate.orm:hibernate-spatial:6.6.33.Final'
     implementation 'org.locationtech.jts:jts-core:1.19.0'
 
-    // Utility
+// [수정] Mac 환경에서 Netty DNS 에러 해결을 위한 상세 의존성
+    // 단순히 이름만 넣으면 아키텍처(M1/M2 vs Intel)를 구분하지 못해 에러가 발생할 수 있습니다.
+    // 현재 사용 중인 Mac의 CPU에 맞는 라이브러리를 명확히 불러오도록 두 가지 분류기를 모두 추가합니다.
+    runtimeOnly "io.netty:netty-resolver-dns-native-macos:4.1.101.Final:osx-aarch_64" // Apple Silicon (M1, M2, M3)
+    runtimeOnly "io.netty:netty-resolver-dns-native-macos:4.1.101.Final:osx-x86_64"  // Intel Mac
+
+
+    runtimeOnly 'org.postgresql:postgresql' // 부모 BOM에서 관리되는 버전 사용 권장
+    runtimeOnly 'org.mariadb.jdbc:mariadb-java-client'
+
+    // --- Utility ---
     implementation 'me.paulschwarz:spring-dotenv:4.0.0'
     compileOnly 'org.projectlombok:lombok'
     developmentOnly 'org.springframework.boot:spring-boot-devtools'
     annotationProcessor 'org.projectlombok:lombok'
 
-    // Databases (PostgreSQL & MariaDB)
-    runtimeOnly 'org.postgresql:postgresql:42.7.8' // 버전 명시 유지 & runtimeOnly로 통합
-    runtimeOnly 'org.mariadb.jdbc:mariadb-java-client'
-
-    // Test
+    // --- Test ---
     testImplementation 'org.springframework.boot:spring-boot-starter-test'
     testImplementation 'org.springframework.kafka:spring-kafka-test'
     testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
 
+    implementation 'me.paulschwarz:spring-dotenv:4.0.0'
 }
 
 // [3] Dependency Management (Cloud & AI BOM 통합)
