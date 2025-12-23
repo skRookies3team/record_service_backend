@@ -16,12 +16,6 @@ public interface DiaryService {
                        String locationName, Double latitude,
                        Double longitude, LocalDate date);
 
-    /**
-     * [STEP 2] ⭐ 추가: 일기 최종 확정 및 발행
-     * 사용자가 저장 버튼을 눌렀을 때 Milvus(벡터 DB) 저장 및 Kafka 이벤트를 발행합니다.
-     */
-    DiaryResponse confirmAndPublishDiary(Long diaryId);
-
     // 일기 단건 조회
     DiaryResponse getDiary(Long diaryId);
 
