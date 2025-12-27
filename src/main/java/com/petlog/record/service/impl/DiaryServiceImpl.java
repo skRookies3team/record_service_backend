@@ -82,34 +82,6 @@ public class DiaryServiceImpl implements DiaryService {
 
         validateUserAndPet(userId, petId);
 
-//        List<String> imageUrls = new ArrayList<>();
-//        ImageSource source;
-//
-//        // 1. 이미지 소스 판별
-//        // photoArchiveId가 있고, images 리스트에 URL이 들어있다면 보관함 모드!
-//        if (photoArchiveId != null && images != null && !images.isEmpty()) {
-//            source = ImageSource.ARCHIVE;
-//            // DTO 내부의 Image 객체들에서 URL만 추출
-//            imageUrls = images.stream()
-//                    .map(DiaryRequest.Image::getImageUrl)
-//                    .collect(Collectors.toList());
-//            log.info("Source: ARCHIVE - 프론트엔드 전달 URL 사용: {}", imageUrls);
-//        }
-//        // 보관함 ID가 없고 파일이 직접 들어왔다면 갤러리 모드!
-//        else if (isActualFilePresent(imageFiles)) {
-//            source = ImageSource.GALLERY;
-//            try {
-//                ArchiveResponse.CreateArchiveDtoList archiveResponse = imageClient.createArchive(userId, imageFiles);
-//                imageUrls = archiveResponse.getArchives().stream()
-//                        .map(ArchiveResponse.CreateArchiveDto::getUrl)
-//                        .collect(Collectors.toList());
-//            } catch (Exception e) {
-//                throw new RuntimeException("이미지 서버 연동 실패");
-//            }
-//        } else {
-//            throw new BusinessException(ErrorCode.INVALID_PARAMETER);
-//        }
-
         List<String> finalImageUrls = new ArrayList<>();
         List<Long> finalArchiveIds = new ArrayList<>();
 
@@ -144,24 +116,6 @@ public class DiaryServiceImpl implements DiaryService {
             throw new BusinessException(ErrorCode.INVALID_PARAMETER);
         }
 
-        // 2. AI 일기 내용 생성 (기존 로직 유지 - 소스 구별 없이 분석 수행)
-        // 만약 ARCHIVE 소스라서 imageFiles가 비어있을 경우를 대비해 imageUrls 기반 분석 로직을 활용하거나
-        // 클라이언트에서 분석을 위해 파일을 항상 보내준다면 기존 generateContentWithAi(imageFiles)를 그대로 사용합니다.
-        //AiDiaryResponse aiResponse;
-//        if (imageFiles != null && !imageFiles.isEmpty()) {
-//            aiResponse = generateContentWithAi(imageFiles);
-//        } else {
-//            // 보관함 선택 시 파일 데이터가 없다면 URL을 통해 분석하는 별도 로직이 필요할 수 있으나,
-//            // 요청에 따라 기존 분석 코드의 흐름을 최대한 유지합니다.
-//            aiResponse = generateContentWithAiFromUrls(imageUrls);
-//        }
-//        if (source == ImageSource.GALLERY) {
-//            aiResponse = generateContentWithAi(imageFiles);
-//        } else {
-//            // 보관함 사진일 경우 URL로 분석
-//            aiResponse = generateContentWithAiFromUrls(imageUrls);
-//        }
-
         // --- 2. AI 분석 (통합된 URL 리스트 사용) ---
         AiDiaryResponse aiResponse = generateContentWithAiFromUrls(finalImageUrls);
 
@@ -182,41 +136,6 @@ public class DiaryServiceImpl implements DiaryService {
         if ((finalLocationName == null || finalLocationName.isEmpty()) && latitude != null && longitude != null) {
             finalLocationName = getAddressFromCoords(latitude, longitude);
         }
-
-//        // 5. Diary 엔티티 생성
-//        Diary diary = Diary.builder()
-//                .userId(userId)
-//                .petId(petId)
-//                .photoArchiveId(photoArchiveId)
-//                .content(aiResponse.getContent())
-//                .mood(aiResponse.getMood())
-//                .weather(weatherInfo)
-//                .isAiGen(true)
-//                .visibility(visibility != null ? visibility : Visibility.PRIVATE)
-//                .latitude(latitude)
-//                .longitude(longitude)
-//                .locationName(finalLocationName != null ? finalLocationName : "위치 정보 없음")
-//                .date(targetDate)
-//                .build();
-//
-//        // 6. 이미지 목록을 순회하며 DiaryImage 생성 및 Diary에 추가 (다이어리 서비스 DB에만 저장)
-//        for (int i = 0; i < imageUrls.size(); i++) {
-//            DiaryImage diaryImage = DiaryImage.builder()
-//                    .imageUrl(imageUrls.get(i))
-//                    .userId(userId)
-//                    .imgOrder(i + 1)
-//                    .mainImage(i == 0)
-//                    .source(source)
-//                    .build();
-//
-//            diary.addImage(diaryImage);
-//        }
-//
-//        Diary savedDiary = diaryRepository.save(diary);
-//
-//        return savedDiary.getDiaryId();
-//    }
-
 
         // --- 4. Diary 엔티티 생성 ---
         // 단일 photoArchiveId는 null로 설정 (DiaryArchive 테이블이 대신함)

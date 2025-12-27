@@ -125,7 +125,7 @@ public class DiaryRequest {
         @Schema(description = "대표 이미지 여부", example = "true")
         private Boolean mainImage;
 
-        // [수정] 기본값을 GALLERY로 설정하여 요청 시 생략 가능하도록 변경
+        // 기본값을 GALLERY로 설정하여 요청 시 생략 가능하도록 변경
         @Schema(description = "이미지 출처 (GALLERY, ARCHIVE)", example = "GALLERY", defaultValue = "GALLERY")
         @Builder.Default
         private ImageSource source = ImageSource.GALLERY;
