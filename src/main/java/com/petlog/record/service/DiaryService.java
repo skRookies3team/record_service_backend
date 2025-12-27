@@ -11,7 +11,7 @@ import java.util.List;
 public interface DiaryService {
 
     // [수정] photoArchiveId 파라미터 추가
-    Long createAiDiary(Long userId, Long petId, Long photoArchiveId,
+    Long createAiDiary(Long userId, Long petId, Long photoArchiveId, List<DiaryRequest.Image> images,
                        List<MultipartFile> imageFile, Visibility visibility,
                        String locationName, Double latitude,
                        Double longitude, LocalDate date);

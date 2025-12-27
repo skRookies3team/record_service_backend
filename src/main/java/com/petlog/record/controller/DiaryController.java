@@ -33,19 +33,23 @@ public class DiaryController {
     @Operation(summary = "AI 일기 생성", description = "이미지를 분석하여 AI가 일기를 작성합니다.")
     @PostMapping(value = "/ai", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public ResponseEntity<Map<String, Object>> createAiDiary(
+            // 1. 변수명을 imageFiles로 통일하고, 파일이 없을 경우를 위해 required = false 추가
             @Parameter(description = "업로드할 이미지 파일", content = @Content(mediaType = MediaType.MULTIPART_FORM_DATA_VALUE))
-            @RequestPart("image") List<MultipartFile> images,
+            @RequestPart(value = "imageFiles", required = false) List<MultipartFile> imageFiles,
 
+            // 2. 파라미터명을 'request'로 통일 (프론트와 맞추기 위함)
             @Parameter(description = "일기 생성 요청 데이터 (JSON)", content = @Content(mediaType = MediaType.APPLICATION_JSON_VALUE, schema = @Schema(implementation = DiaryRequest.Create.class)))
-            @Valid @RequestPart("data") DiaryRequest.Create request
+            @Valid @RequestPart("request") DiaryRequest.Create request
     ) {
         log.info("AI 일기 생성 요청 - UserId: {}, PetId: {}", request.getUserId(), request.getPetId());
 
+        // 서비스 호출 시 변수명을 정확히 매칭
         Long diaryId = diaryService.createAiDiary(
                 request.getUserId(),
                 request.getPetId(),
-                request.getPhotoArchiveId(), // photoArchiveId 추가
-                images,
+                request.getPhotoArchiveId(), // 보관함 ID
+                request.getImages(),         // DTO 내부에 담긴 이미지 정보(URL 등) 리스트
+                imageFiles,                  // 실제 업로드된 MultipartFile 리스트
                 request.getVisibility(),
                 request.getLocationName(),
                 request.getLatitude(),
