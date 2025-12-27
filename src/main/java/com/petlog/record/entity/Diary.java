@@ -61,7 +61,6 @@ public class Diary {
     private String mood;
 
     // 보관함 ID
-    @Column(nullable = false)
     private Long photoArchiveId;
 
     // 작성일
