@@ -27,8 +27,8 @@ public class DiaryResponse {
     @Schema(description = "관련 펫 ID", example = "1")
     private Long petId;
 
-    @Schema(description = "관련 사진 보관함 ID", example = "10")
-    private Long photoArchiveId;
+//    @Schema(description = "관련 사진 보관함 ID", example = "10")
+//    private Long photoArchiveId;
 
     @Schema(description = "일기 내용", example = "오늘 공원에서 산책하며 즐거운 시간을 보냈다.")
     private String content;
@@ -71,7 +71,7 @@ public class DiaryResponse {
                 .diaryId(diary.getDiaryId())
                 .userId(diary.getUserId())
                 .petId(diary.getPetId())
-                .photoArchiveId(diary.getPhotoArchiveId())
+                //.photoArchiveId(diary.getPhotoArchiveId())
                 .content(diary.getContent())
                 .locationName(diary.getLocationName())
                 .latitude(diary.getLatitude())

@@ -71,7 +71,7 @@ public class DiaryRequest {
             Diary diary = Diary.builder()
                     .userId(this.userId)
                     .petId(this.petId)
-                    .photoArchiveId(this.photoArchiveId)
+                    //.photoArchiveId(this.photoArchiveId)
                     .content(this.content)
                     .visibility(this.visibility)
                     .isAiGen(this.isAiGen)

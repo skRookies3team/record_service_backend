@@ -61,7 +61,7 @@ public class Diary {
     private String mood;
 
     // 보관함 ID
-    private Long photoArchiveId;
+//    private Long photoArchiveId;
 
     // 작성일
     @CreationTimestamp

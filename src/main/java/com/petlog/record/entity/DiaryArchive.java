@@ -18,12 +18,11 @@ public class DiaryArchive {
     @JoinColumn(name = "diary_id", nullable = false)
     private Diary diary;
 
-    @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "archive_id", nullable = false)
-    private Archive archive;
+    private Long archive;
 
     // Helper method for creation
-    public static DiaryArchive create(Diary diary, Archive archive) {
+    public static DiaryArchive create(Diary diary, Long archive) {
         return DiaryArchive.builder()
                 .diary(diary)
                 .archive(archive)
