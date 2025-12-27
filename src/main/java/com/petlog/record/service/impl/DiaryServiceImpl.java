@@ -192,8 +192,8 @@ public class DiaryServiceImpl implements DiaryService {
                     .createdAt(LocalDateTime.now())   // 또는 엔티티의 생성시간 사용
                     .build();
 
-            // 카프카 전송 (설정하신 diary-events으로 메시지 객체 전송)
-            kafkaTemplate.send("diary-events", eventMessage);
+            // 카프카 전송 (설정하신 diary-topic으로 메시지 객체 전송)
+            kafkaTemplate.send("diary-topic", eventMessage);
 
             log.info("Healthcare Service로 일기 생성 이벤트 발행 성공: DiaryId {}", savedDiary.getDiaryId());
         } catch (Exception e) {

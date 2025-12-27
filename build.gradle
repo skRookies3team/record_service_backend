@@ -18,89 +18,102 @@ configurations {
     compileOnly {
         extendsFrom annotationProcessor
     }
+
+    // ✅ 전역 로깅 충돌 제거
+    all {
+        exclude group: 'org.slf4j', module: 'slf4j-reload4j'
+        exclude group: 'org.slf4j', module: 'slf4j-log4j12'
+        exclude group: 'ch.qos.reload4j', module: 'reload4j'
+        exclude group: 'log4j', module: 'log4j'
+    }
 }
 
 repositories {
     mavenCentral()
-    // [중요] Spring AI Milestone 버전을 다운로드하기 위한 저장소
     maven { url 'https://repo.spring.io/milestone' }
 }
 
-// [1] 버전 변수 설정 (Cloud & AI 통합)
+// 버전 변수 설정
 ext {
     springCloudVersion = "2025.0.0"
     springAiVersion = "1.0.0-M4"
 }
 
 dependencies {
-    // --- Spring AI ---
-    // AWS Bedrock (Titan 모델용)
+    // ========================================
+    // Spring AI
+    // ========================================
     implementation 'org.springframework.ai:spring-ai-bedrock-ai-spring-boot-starter'
-
-    // OpenAI (Chat GPT-4o용)
     implementation 'org.springframework.ai:spring-ai-openai-spring-boot-starter'
+    implementation 'org.springframework.ai:spring-ai-milvus-store-spring-boot-starter'
 
-    // Milvus Vector Store (로깅 충돌 방지를 위한 exclude 추가)
-    implementation('org.springframework.ai:spring-ai-milvus-store-spring-boot-starter') {
+    // ✅ Milvus SDK (Hadoop 의존성에서 로깅 제거)
+    implementation('io.milvus:milvus-sdk-java:2.3.5') {
         exclude group: 'org.slf4j', module: 'slf4j-reload4j'
         exclude group: 'ch.qos.reload4j', module: 'reload4j'
+        exclude group: 'log4j', module: 'log4j'
     }
 
-    // --- Spring Boot Starters ---
+    // ========================================
+    // Spring Boot Starters
+    // ========================================
     implementation 'org.springframework.boot:spring-boot-starter-data-jpa'
     implementation 'org.springframework.boot:spring-boot-starter-thymeleaf'
     implementation 'org.springframework.boot:spring-boot-starter-validation'
     implementation 'org.springframework.boot:spring-boot-starter-web'
     implementation 'org.springframework.boot:spring-boot-starter-security'
+    developmentOnly 'org.springframework.boot:spring-boot-devtools'
 
-    // --- Messaging & Cloud ---
+    // ========================================
+    // Messaging & Cloud
+    // ========================================
     implementation 'org.springframework.kafka:spring-kafka'
     implementation 'org.springframework.cloud:spring-cloud-starter-openfeign'
     implementation 'org.springframework.cloud:spring-cloud-starter-loadbalancer'
 
-    // --- Security & JWT ---
+    // ========================================
+    // Security & JWT
+    // ========================================
     implementation 'io.jsonwebtoken:jjwt-api:0.12.3'
     runtimeOnly 'io.jsonwebtoken:jjwt-impl:0.12.3'
     runtimeOnly 'io.jsonwebtoken:jjwt-jackson:0.12.3'
 
-    // --- API Documentation (Swagger) ---
+    // ========================================
+    // API Documentation (Swagger)
+    // ========================================
     implementation 'org.springdoc:springdoc-openapi-starter-webmvc-ui:2.7.0'
     implementation 'io.swagger.core.v3:swagger-annotations-jakarta:2.2.25'
 
-    // --- Database & GIS ---
-    // [수정] Hibernate Core 6.6 버전과 호환되도록 버전을 명시하지 않거나 최신화합니다.
+    // ========================================
+    // Database & GIS
+    // ========================================
     implementation 'org.hibernate.orm:hibernate-spatial:6.6.33.Final'
     implementation 'org.locationtech.jts:jts-core:1.19.0'
-
-    // --- kafka ---
-    implementation 'org.springframework.kafka:spring-kafka'
-    testImplementation 'org.springframework.kafka:spring-kafka-test'
-
-// [수정] Mac 환경에서 Netty DNS 에러 해결을 위한 상세 의존성
-    // 단순히 이름만 넣으면 아키텍처(M1/M2 vs Intel)를 구분하지 못해 에러가 발생할 수 있습니다.
-    // 현재 사용 중인 Mac의 CPU에 맞는 라이브러리를 명확히 불러오도록 두 가지 분류기를 모두 추가합니다.
-    runtimeOnly "io.netty:netty-resolver-dns-native-macos:4.1.101.Final:osx-aarch_64" // Apple Silicon (M1, M2, M3)
-    runtimeOnly "io.netty:netty-resolver-dns-native-macos:4.1.101.Final:osx-x86_64"  // Intel Mac
-
-
-    runtimeOnly 'org.postgresql:postgresql' // 부모 BOM에서 관리되는 버전 사용 권장
+    runtimeOnly 'org.postgresql:postgresql'
     runtimeOnly 'org.mariadb.jdbc:mariadb-java-client'
 
-    // --- Utility ---
+    // ========================================
+    // Mac Netty DNS 해결 (M1/M2 & Intel)
+    // ========================================
+    runtimeOnly 'io.netty:netty-resolver-dns-native-macos:4.1.101.Final:osx-aarch_64' // Apple Silicon
+    runtimeOnly 'io.netty:netty-resolver-dns-native-macos:4.1.101.Final:osx-x86_64'   // Intel Mac
+
+    // ========================================
+    // Utility
+    // ========================================
     implementation 'me.paulschwarz:spring-dotenv:4.0.0'
     compileOnly 'org.projectlombok:lombok'
-    developmentOnly 'org.springframework.boot:spring-boot-devtools'
     annotationProcessor 'org.projectlombok:lombok'
 
-    // --- Test ---
+    // ========================================
+    // Test
+    // ========================================
     testImplementation 'org.springframework.boot:spring-boot-starter-test'
     testImplementation 'org.springframework.kafka:spring-kafka-test'
     testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
-
-    implementation 'me.paulschwarz:spring-dotenv:4.0.0'
 }
 
-// [3] Dependency Management (Cloud & AI BOM 통합)
+// Dependency Management (Cloud & AI BOM)
 dependencyManagement {
     imports {
         mavenBom "org.springframework.cloud:spring-cloud-dependencies:${springCloudVersion}"

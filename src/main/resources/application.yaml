@@ -53,9 +53,11 @@ spring:
         client:
           host: ${MILVUS_HOST}
           port: 19530
-        collection-name: diary_collection
+        collection-name: vector_store
         embedding-dimension: 1536 # OpenAI 모델과 일치 (Perfect!)
-        initialize-schema: true
+        index-type: IVF_FLAT
+        metric-type: COSINE
+        database-name: default
 
   # ========================================
   # 기타 데이터 및 클라우드 설정
