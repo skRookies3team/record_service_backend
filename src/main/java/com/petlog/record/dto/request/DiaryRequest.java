@@ -31,10 +31,8 @@ public class DiaryRequest {
         @Schema(description = "관련된 펫 ID", example = "1")
         private Long petId;
 
-
-        @NotNull(message = "보관함 ID는 필수입니다.")
         @Schema(description = "관련된 사진 보관함 ID", example = "10")
-        private Long photoArchiveId; // [추가] 반드시 받아와야 하는 보관함 ID
+        private Long photoArchiveId;
 
         // [추가] 위치 정보 (선택)
         @Schema(description = "위도", example = "37.5665")
@@ -68,12 +66,23 @@ public class DiaryRequest {
         @Schema(description = "첨부 이미지 목록")
         private List<Image> images;
 
+        // --- 추가된 필드: 미리보기 결과물을 다시 전달받기 위한 용도 ---
+
+        @Schema(description = "미리보기 단계에서 발급받은 이미지 URL 목록")
+        @JsonProperty("imageUrls")
+        private List<String> imageUrls;
+
+        @Schema(description = "미리보기 단계에서 발급받은 보관함(Archive) ID 목록")
+        @JsonProperty("archiveIds")
+        private List<Long> archiveIds;
+
+
         // DTO -> Diary Entity 변환
         public Diary toEntity() {
             Diary diary = Diary.builder()
                     .userId(this.userId)
                     .petId(this.petId)
-                    .photoArchiveId(this.photoArchiveId)
+                    //.photoArchiveId(this.photoArchiveId)
                     .content(this.content)
                     .visibility(this.visibility)
                     .isAiGen(this.isAiGen)
@@ -128,10 +137,13 @@ public class DiaryRequest {
         @Schema(description = "대표 이미지 여부", example = "true")
         private Boolean mainImage;
 
-        // [수정] 기본값을 GALLERY로 설정하여 요청 시 생략 가능하도록 변경
+        // 기본값을 GALLERY로 설정하여 요청 시 생략 가능하도록 변경
         @Schema(description = "이미지 출처 (GALLERY, ARCHIVE)", example = "GALLERY", defaultValue = "GALLERY")
         @Builder.Default
         private ImageSource source = ImageSource.GALLERY;
+
+        // [New] ID if source is ARCHIVE
+        private Long archiveId;
 
         public DiaryImage toEntity(Long userId) {
             return DiaryImage.builder()

@@ -10,6 +10,8 @@ import java.util.List;
 @Repository
 public interface DiaryStyleRepository extends JpaRepository<DiaryStyle, Long> {
 
+    Optional<DiaryStyle> findByDiaryId(Long diaryId);
+
     // [핵심] 스타일 생성/조회 시 사용: 특정 사용자의 특정 펫에 대한 스타일을 찾음
     Optional<DiaryStyle> findByUserIdAndPetId(Long userId, Long petId);
     

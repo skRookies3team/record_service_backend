@@ -21,6 +21,10 @@ public class DiaryStyle {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
+    // 일기 ID
+    @Column(name = "diary_id", nullable = false, updatable = false)
+    private Long diaryId;
+
     // 사용자 ID (FK)
     @Column(name = "user_id", nullable = false)
     private Long userId;

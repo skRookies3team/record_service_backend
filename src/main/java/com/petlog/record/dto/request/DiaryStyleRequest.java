@@ -38,18 +38,22 @@ public class DiaryStyleRequest {
     @Schema(description = "스타일을 적용할 펫 ID (선택값: null일 경우 유저의 기본 스타일로 저장)", example = "1")
     private Long petId;
 
+    @Schema(description = "관련된 다이어리 ID (개별 다이어리 스타일 적용)", example = "100")
+    private Long diaryId; // [NEW]
+
     // DTO -> Entity 변환
     public DiaryStyle toEntity(Long userId) {
         return DiaryStyle.builder()
                 .userId(userId)
                 .petId(this.petId)
-                .galleryType(this.galleryType)
-                .textAlignment(this.textAlignment)
-                .fontSize(this.fontSize)
-                .sizeOption(this.sizeOption)
-                .backgroundColor(this.backgroundColor)
-                .preset(this.preset)
-                .themeStyle(this.themeStyle)
+                .diaryId(this.diaryId) // [NEW]
+                .galleryType(this.galleryType) // Default fallback values can be handled in Service/Builder default
+                .textAlignment(this.textAlignment != null ? this.textAlignment : "left")
+                .fontSize(this.fontSize != null ? this.fontSize : 16)
+                .sizeOption(this.sizeOption != null ? this.sizeOption : "medium")
+                .backgroundColor(this.backgroundColor != null ? this.backgroundColor : "#FFFFFF")
+                .preset(this.preset != null ? this.preset : "default")
+                .themeStyle(this.themeStyle != null ? this.themeStyle : "basic")
                 .build();
     }
 }

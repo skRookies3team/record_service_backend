@@ -40,24 +40,48 @@ public class DiaryStyleServiceImpl implements DiaryStyleService {
     }
 
 
-    @Override
-    @Transactional // 쓰기 트랜잭션 (데이터 생성/수정 가능)
-    public DiaryStyleResponse createOrUpdateStyle(Long userId, DiaryStyleRequest request) {
-        // [Upsert 로직] 기존 스타일이 (UserId, PetId) 조합으로 있는지 확인
-        Optional<DiaryStyle> existingStyle = diaryStyleRepository
-                .findByUserIdAndPetId(userId, request.getPetId());
-
-        if (existingStyle.isPresent()) {
-            // 있으면 업데이트
-            return updateStyle(existingStyle.get().getId(), request, userId);
+//    @Override
+//    @Transactional // 쓰기 트랜잭션 (데이터 생성/수정 가능)
+//    public DiaryStyleResponse createOrUpdateStyle(Long userId, DiaryStyleRequest request) {
+//        // [Upsert 로직] 기존 스타일이 (UserId, PetId) 조합으로 있는지 확인
+//        Optional<DiaryStyle> existingStyle = diaryStyleRepository
+//                .findByUserIdAndPetId(userId, request.getPetId());
+//
+//        if (existingStyle.isPresent()) {
+//            // 있으면 업데이트
+//            return updateStyle(existingStyle.get().getId(), request, userId);
+//        }
+//
+//        // 없으면 새로 생성 (CREATE) - DTO의 toEntity 메서드 사용
+//        DiaryStyle style = request.toEntity(userId);
+//
+//        DiaryStyle saved = diaryStyleRepository.save(style);
+//        return DiaryStyleResponse.fromEntity(saved);
+//    }
+@Override
+@Transactional // 쓰기 트랜잭션 (데이터 생성/수정 가능)
+public DiaryStyleResponse createOrUpdateStyle(Long userId, DiaryStyleRequest request) {
+    // [수정] 1. 다이어리 ID가 있는 경우 (개별 다이어리 스타일 우선)
+    if (request.getDiaryId() != null) {
+        Optional<DiaryStyle> existingDiaryStyle = diaryStyleRepository.findByDiaryId(request.getDiaryId());
+        if (existingDiaryStyle.isPresent()) {
+            // 이미 있으면 업데이트
+            return updateStyle(existingDiaryStyle.get().getId(), request, userId);
         }
-
-        // 없으면 새로 생성 (CREATE) - DTO의 toEntity 메서드 사용
-        DiaryStyle style = request.toEntity(userId);
-
-        DiaryStyle saved = diaryStyleRepository.save(style);
-        return DiaryStyleResponse.fromEntity(saved);
+        // 없으면 새로 생성 (CREATE) -> 아래 로직으로 진행
     }
+    // [기존 로직 유지?] 2. 만약 DiaryId가 없고 (UserId, PetId)로 찾는 경우라면...
+    // -> 현재 요구사항은 "다이어리 생성할 때마다 스타일 DB 업데이트" 이므로
+    //    그냥 항상 새로 만들거나 DiaryId로 찾는게 맞습니다.
+    //    PetId/UserId 기준 글로벌 설정은 "기본값 불러오기" 용도로만 쓰고
+    //    저장(Create)은 무조건 DiaryId와 매핑하는 것이 좋습니다.
+    // 여기서는 "요청에 DiaryId가 있으면 무조건 해당 다이어리에 대한 스타일을 만든다"는 가정하에 진행합니다.
+
+    DiaryStyle style = request.toEntity(userId);
+    DiaryStyle saved = diaryStyleRepository.save(style);
+
+    return DiaryStyleResponse.fromEntity(saved);
+}
 
     @Override
     @Transactional // 쓰기 트랜잭션 (데이터 수정 가능)

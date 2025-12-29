@@ -2,6 +2,7 @@
 CREATE DATABASE diary_db;
 CREATE DATABASE user_db;
 CREATE DATABASE social_db;
+CREATE DATABASE mate_db;
 
 -- 2. diary_db로 접속 전환 (메타 명령어)
 \c diary_db
