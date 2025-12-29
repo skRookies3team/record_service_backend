@@ -17,7 +17,6 @@ public interface DiaryService {
     // 최종 일기 저장 (DB 저장 O)
     Long saveDiary(DiaryRequest.Create request);
 
-
     // 일기 단건 조회
     DiaryResponse getDiary(Long diaryId);
 

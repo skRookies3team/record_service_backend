@@ -1,6 +1,6 @@
 plugins {
     id 'java'
-    id 'org.springframework.boot' version '3.5.7' // 사용자 지정 버전 유지
+    id 'org.springframework.boot' version '3.5.7'
     id 'io.spring.dependency-management' version '1.1.7'
 }
 
@@ -18,72 +18,102 @@ configurations {
     compileOnly {
         extendsFrom annotationProcessor
     }
+
+    // ✅ 전역 로깅 충돌 제거
+    all {
+        exclude group: 'org.slf4j', module: 'slf4j-reload4j'
+        exclude group: 'org.slf4j', module: 'slf4j-log4j12'
+        exclude group: 'ch.qos.reload4j', module: 'reload4j'
+        exclude group: 'log4j', module: 'log4j'
+    }
 }
 
 repositories {
     mavenCentral()
-    // [중요] Spring AI Milestone 버전을 다운로드하기 위한 저장소
     maven { url 'https://repo.spring.io/milestone' }
 }
 
-// [1] 버전 변수 설정 (Cloud & AI 통합)
+// 버전 변수 설정
 ext {
     springCloudVersion = "2025.0.0"
     springAiVersion = "1.0.0-M4"
 }
 
 dependencies {
-    // [2] Spring AI OpenAI Starter
+    // ========================================
+    // Spring AI
+    // ========================================
+    implementation 'org.springframework.ai:spring-ai-bedrock-ai-spring-boot-starter'
     implementation 'org.springframework.ai:spring-ai-openai-spring-boot-starter'
+    implementation 'org.springframework.ai:spring-ai-milvus-store-spring-boot-starter'
 
+    // ✅ Milvus SDK (Hadoop 의존성에서 로깅 제거)
+    implementation('io.milvus:milvus-sdk-java:2.3.5') {
+        exclude group: 'org.slf4j', module: 'slf4j-reload4j'
+        exclude group: 'ch.qos.reload4j', module: 'reload4j'
+        exclude group: 'log4j', module: 'log4j'
+    }
+
+    // ========================================
     // Spring Boot Starters
+    // ========================================
     implementation 'org.springframework.boot:spring-boot-starter-data-jpa'
     implementation 'org.springframework.boot:spring-boot-starter-thymeleaf'
     implementation 'org.springframework.boot:spring-boot-starter-validation'
     implementation 'org.springframework.boot:spring-boot-starter-web'
     implementation 'org.springframework.boot:spring-boot-starter-security'
+    developmentOnly 'org.springframework.boot:spring-boot-devtools'
 
-    // Kafka
+    // ========================================
+    // Messaging & Cloud
+    // ========================================
     implementation 'org.springframework.kafka:spring-kafka'
-
-    // JWT
-    implementation 'io.jsonwebtoken:jjwt-api:0.12.3'
-    implementation 'io.jsonwebtoken:jjwt-impl:0.12.3'
-    implementation 'io.jsonwebtoken:jjwt-jackson:0.12.3'
-
-    // Swagger
-    implementation 'org.springdoc:springdoc-openapi-starter-webmvc-ui:2.7.0'
-
-    // 이 줄을 추가하여 swagger-annotations 버전을 강제로 2.2.25로 맞춥니다.
-    implementation 'io.swagger.core.v3:swagger-annotations-jakarta:2.2.25'
-
-    // Spring Cloud (Feign & LoadBalancer)
     implementation 'org.springframework.cloud:spring-cloud-starter-openfeign'
     implementation 'org.springframework.cloud:spring-cloud-starter-loadbalancer'
 
-    // PostGIS 공간 데이터(Point, Geometry) 처리를 위한 라이브러리 (위치 저장/조회 기능)
-    // 위치 기반 서비스(LBS) 및 PostGIS 연동
-    implementation 'org.hibernate:hibernate-spatial:6.2.13.Final'
+    // ========================================
+    // Security & JWT
+    // ========================================
+    implementation 'io.jsonwebtoken:jjwt-api:0.12.3'
+    runtimeOnly 'io.jsonwebtoken:jjwt-impl:0.12.3'
+    runtimeOnly 'io.jsonwebtoken:jjwt-jackson:0.12.3'
+
+    // ========================================
+    // API Documentation (Swagger)
+    // ========================================
+    implementation 'org.springdoc:springdoc-openapi-starter-webmvc-ui:2.7.0'
+    implementation 'io.swagger.core.v3:swagger-annotations-jakarta:2.2.25'
+
+    // ========================================
+    // Database & GIS
+    // ========================================
+    implementation 'org.hibernate.orm:hibernate-spatial:6.6.33.Final'
     implementation 'org.locationtech.jts:jts-core:1.19.0'
-
-    // Utility
-    implementation 'me.paulschwarz:spring-dotenv:4.0.0'
-    compileOnly 'org.projectlombok:lombok'
-    developmentOnly 'org.springframework.boot:spring-boot-devtools'
-    annotationProcessor 'org.projectlombok:lombok'
-
-    // Databases (PostgreSQL & MariaDB)
-    runtimeOnly 'org.postgresql:postgresql:42.7.8' // 버전 명시 유지 & runtimeOnly로 통합
+    runtimeOnly 'org.postgresql:postgresql'
     runtimeOnly 'org.mariadb.jdbc:mariadb-java-client'
 
+    // ========================================
+    // Mac Netty DNS 해결 (M1/M2 & Intel)
+    // ========================================
+    runtimeOnly 'io.netty:netty-resolver-dns-native-macos:4.1.101.Final:osx-aarch_64' // Apple Silicon
+    runtimeOnly 'io.netty:netty-resolver-dns-native-macos:4.1.101.Final:osx-x86_64'   // Intel Mac
+
+    // ========================================
+    // Utility
+    // ========================================
+    implementation 'me.paulschwarz:spring-dotenv:4.0.0'
+    compileOnly 'org.projectlombok:lombok'
+    annotationProcessor 'org.projectlombok:lombok'
+
+    // ========================================
     // Test
+    // ========================================
     testImplementation 'org.springframework.boot:spring-boot-starter-test'
     testImplementation 'org.springframework.kafka:spring-kafka-test'
     testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
-
 }
 
-// [3] Dependency Management (Cloud & AI BOM 통합)
+// Dependency Management (Cloud & AI BOM)
 dependencyManagement {
     imports {
         mavenBom "org.springframework.cloud:spring-cloud-dependencies:${springCloudVersion}"

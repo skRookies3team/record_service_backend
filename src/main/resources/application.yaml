@@ -1,37 +1,76 @@
-server:
-  port: 8087
-
 spring:
   application:
     name: petlog
 
-  # 프로파일 설정 (기본적으로 dev 활성화, 배포 시 prod로 오버라이드)
   profiles:
     active: dev
 
   config:
     import: "optional:file:.env[.properties]"
 
-  # [중요] Spring AI 설정 (공통)
+  # ========================================
+  # Kafka 설정 (spring: 바로 아래로 이동)
+  # ========================================
+  kafka:
+    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS}
+    producer:
+      # Serializer 설정
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
+
+      # 신뢰성 설정
+      acks: all  # 모든 replica가 확인할 때까지 대기
+      retries: 3  # 실패 시 3번 재시도
+
+      # 성능 설정
+      properties:
+        linger.ms: 10  # 10ms 대기 후 배치 전송
+        batch.size: 16384  # 배치 크기 (16KB)
+        compression.type: snappy  # 압축 (빠른 성능)
+
+        # JSON 직렬화 설정
+        spring.json.add.type.headers: false  # __TypeId__ 헤더 제거
+
+  # ========================================
+  # Spring AI 설정
+  # ========================================
   ai:
     openai:
       api-key: ${OPENAI_API_KEY}
       chat:
         options:
           model: gpt-4o
+      embedding:
+        enabled: true
+        options:
+          model: text-embedding-3-small # 1536 차원
 
-  # 파일 업로드 제한 (User Service와 동일하게 맞춤)
+    # ========================================
+    # Milvus 설정
+    # ========================================
+    vectorstore:
+      milvus:
+        client:
+          host: ${MILVUS_HOST}
+          port: 19530
+        collection-name: vector_store
+        embedding-dimension: 1536 # OpenAI 모델과 일치 (Perfect!)
+        index-type: IVF_FLAT
+        metric-type: COSINE
+        database-name: default
+
+  # ========================================
+  # 기타 데이터 및 클라우드 설정
+  # ========================================
   servlet:
     multipart:
       max-file-size: 10MB
       max-request-size: 10MB
 
-  # MongoDB 설정 (공통)
   data:
     mongodb:
       uri: "${MONGO_URI}"
 
-  # MSA Feign Client 설정 (공통)
   cloud:
     openfeign:
       client:
@@ -40,7 +79,17 @@ spring:
             connectTimeout: 5000
             readTimeout: 5000
 
-# === 외부 서비스 URL 설정 (공통) ===
+# 서버 포트 (spring: 외부로 분리)
+server:
+  port: 8087
+
+# 로깅 설정
+logging:
+  level:
+    com.petlog.diary: DEBUG
+    org.springframework.kafka: INFO
+
+# 외부 서비스 및 API 설정
 openapi:
   service:
     url: ${API_GATEWAY}
@@ -56,12 +105,9 @@ external:
     url: ${NOTIFICATION_SERVICE_URL:http://localhost:8083}
   storage-service:
     url: ${STORAGE_SERVICE_URL:http://localhost:8084}
-
-  # 기상청 API
   weather:
     api-key: ${WEATHER_API_KEY}
     asos-api-key: ${ASOS_API_KEY}
 
-# Kakao API
 kakao:
   rest-api-key: ${KAKAO_REST_API_KEY}

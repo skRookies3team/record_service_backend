@@ -1,7 +1,8 @@
+version: '3.5'
+
 services:
+  # 1. PostgreSQL + PostGIS
   postgres:
-    # [핵심 변경] 일반 'postgres' 대신 'postgis'가 설치된 이미지를 사용해야 합니다.
-    # alpine 버전은 용량이 작고 가볍습니다.
     image: postgis/postgis:15-3.4-alpine
     container_name: petlog_pg_master
     restart: always
@@ -13,8 +14,156 @@ services:
       POSTGRES_DB: postgres
     volumes:
       - pg_data:/var/lib/postgresql/data
-      # 초기화 스크립트 폴더가 있다면 연결 (선택 사항)
       - ./initdb:/docker-entrypoint-initdb.d
+    networks:
+      - petlog-net
+
+  # 2. Milvus - etcd
+  etcd:
+    container_name: milvus-etcd
+    image: quay.io/coreos/etcd:v3.5.0
+    environment:
+      - ETCD_AUTO_COMPACTION_RETENTION_RENDER_BY_HOUR=1
+    volumes:
+      - milvus_etcd:/etcd
+    command: etcd -advertise-client-urls http://127.0.0.1:2379 -listen-client-urls http://0.0.0.0:2379 --data-dir /etcd
+    networks:
+      - petlog-net
+
+  # 3. Milvus - MinIO
+  minio:
+    container_name: milvus-minio
+    image: minio/minio:RELEASE.2020-12-03T00-03-10Z
+    environment:
+      MINIO_ACCESS_KEY: minioadmin
+      MINIO_SECRET_KEY: minioadmin
+    volumes:
+      - milvus_minio:/export
+    command: server /export
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      interval: 30s
+      timeout: 20s
+      retries: 3
+    networks:
+      - petlog-net
+
+  # 4. Milvus - Standalone
+  standalone:
+    container_name: milvus-standalone
+    image: milvusdb/milvus:v2.3.0
+    command: ["milvus", "run", "standalone"]
+    environment:
+      ETCD_ENDPOINTS: etcd:2379
+      MINIO_ADDRESS: minio:9000
+    volumes:
+      - milvus_data:/var/lib/milvus
+    ports:
+      - "19530:19530"
+    depends_on:
+      - "etcd"
+      - "minio"
+    networks:
+      - petlog-net
+
+  # 5. Attu (Milvus GUI)
+  attu:
+    container_name: milvus-attu
+    image: zilliz/attu:latest
+    environment:
+      MILVUS_URL: milvus-standalone:19530
+    ports:
+      - "8010:3000"
+    depends_on:
+      - "standalone"
+    networks:
+      - petlog-net
+
+  # 6. Zookeeper
+  zookeeper:
+    image: confluentinc/cp-zookeeper:7.5.0
+    container_name: diary_zookeeper
+    restart: always
+    ports:
+      - "2181:2181"
+    environment:
+      ZOOKEEPER_CLIENT_PORT: 2181
+      ZOOKEEPER_TICK_TIME: 2000
+    networks:
+      - petlog-net
+
+  # ========================================
+  # 7. Kafka Broker (핵심 수정 부분)
+  # ========================================
+  kafka:
+    image: confluentinc/cp-kafka:7.5.0
+    container_name: diary_kafka
+    restart: always
+    depends_on:
+      - zookeeper
+    ports:
+      - "9092:9092"      # 외부(localhost) 접근용
+      - "29092:29092"    # 내부(컨테이너) 통신용
+    environment:
+      KAFKA_BROKER_ID: 1
+      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
+
+      # ✅ 핵심: 두 개의 리스너 설정
+      KAFKA_LISTENERS: PLAINTEXT://0.0.0.0:9092,PLAINTEXT_INTERNAL://0.0.0.0:29092
+
+      # ✅ 외부는 localhost:9092, 내부는 kafka:29092
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://localhost:9092,PLAINTEXT_INTERNAL://kafka:29092
+
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,PLAINTEXT_INTERNAL:PLAINTEXT
+      KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT_INTERNAL
+
+      # 로컬 개발 최적화 설정
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS: 0
+      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
+      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE: "true"
+
+      # 성능 최적화
+      KAFKA_NUM_NETWORK_THREADS: 3
+      KAFKA_NUM_IO_THREADS: 8
+
+      # ✅ 로그 설정 (디버깅용)
+      KAFKA_LOG_RETENTION_HOURS: 168
+      KAFKA_LOG_SEGMENT_BYTES: 1073741824
+    volumes:
+      - kafka_data:/var/lib/kafka/data
+    networks:
+      - petlog-net
+    healthcheck:
+      test: ["CMD-SHELL", "kafka-broker-api-versions --bootstrap-server localhost:9092 || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # 8. Kafka UI
+  kafka-ui:
+    image: provectuslabs/kafka-ui:latest
+    container_name: diary_kafka_ui
+    restart: always
+    depends_on:
+      - kafka
+    ports:
+      - "8989:8080"
+    environment:
+      KAFKA_CLUSTERS_0_NAME: diary-cluster
+      KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS: kafka:29092  # ✅ 내부 주소 사용
+      KAFKA_CLUSTERS_0_ZOOKEEPER: zookeeper:2181
+    networks:
+      - petlog-net
+
+networks:
+  petlog-net:
+    driver: bridge
 
 volumes:
   pg_data:
+  milvus_etcd:
+  milvus_minio:
+  milvus_data:
+  kafka_data:

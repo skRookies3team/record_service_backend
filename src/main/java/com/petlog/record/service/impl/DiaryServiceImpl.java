@@ -5,6 +5,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.petlog.record.client.ImageClient;
 import com.petlog.record.client.PetClient;
 import com.petlog.record.client.UserClient;
+//import com.petlog.record.dto.DiaryEventMessage;
 import com.petlog.record.dto.request.DiaryRequest;
 import com.petlog.record.dto.response.AiDiaryResponse;
 import com.petlog.record.dto.client.ArchiveResponse;
@@ -27,14 +28,17 @@ import org.springframework.ai.chat.model.ChatModel;
 import org.springframework.ai.chat.prompt.Prompt;
 import org.springframework.ai.chat.prompt.PromptTemplate;
 import org.springframework.ai.converter.BeanOutputConverter;
+import org.springframework.ai.document.Document;
 import org.springframework.ai.model.Media;
 import org.springframework.ai.openai.OpenAiChatOptions;
+import org.springframework.ai.vectorstore.VectorStore;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.io.Resource;
 import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpMethod;
 import org.springframework.http.ResponseEntity;
+import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.MimeTypeUtils;
@@ -43,8 +47,11 @@ import org.springframework.web.multipart.MultipartFile;
 
 import java.net.URL;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 @Slf4j
 @Service
@@ -57,9 +64,16 @@ public class DiaryServiceImpl implements DiaryService {
     private final UserClient userClient;
     private final PetClient petClient;
     private final ImageClient imageClient;
+
     private final ChatModel chatModel;
     private final WeatherService weatherService;
     private final RestTemplate restTemplate;
+
+    // [Milvus] VectorStore 주입 (Spring AI가 설정파일 기반으로 자동 구성)
+    private final VectorStore vectorStore;
+
+//    // ✅ 1. KafkaTemplate 필드 선언 (이 부분이 없어서 빨간 줄이 뜹니다)
+//    private final KafkaTemplate<String, Object> kafkaTemplate;
 
     @Value("classpath:prompts/diary-system.st")
     private Resource systemPromptResource;
@@ -146,7 +160,9 @@ public class DiaryServiceImpl implements DiaryService {
             try {
                 int[] grid = LatXLngY.convert(request.getLatitude(), request.getLongitude());
                 weatherInfo = weatherService.getCurrentWeather(grid[0], grid[1]);
-            } catch (Exception e) { weatherInfo = "맑음"; }
+            } catch (Exception e) {
+                weatherInfo = "맑음";
+            }
         }
 
         String finalLocationName = request.getLocationName();
@@ -192,12 +208,88 @@ public class DiaryServiceImpl implements DiaryService {
             }
         }
 
+        // 7. [Milvus] 벡터 DB에 일기 내용 저장 (검색/RAG용)
+        saveDiaryToVectorDB(savedDiary);
+
+//        // ============================================================
+//        // ✅ [핵심 추가] 8. Kafka를 통한 Healthcare Service 이벤트 발행
+//        // ============================================================
+//        try {
+//            // 대표 이미지 URL 가져오기 (첫 번째 이미지)
+//            String firstImageUrl = savedDiary.getImages().isEmpty() ? null : savedDiary.getImages().get(0).getImageUrl();
+//
+//            // DTO 구성 (사용자님이 작성하신 DiaryEventMessage 사용)
+//            DiaryEventMessage eventMessage = DiaryEventMessage.builder()
+//                    .eventType("DIARY_CREATED")      // 생성 이벤트 타입 명시
+//                    .diaryId(savedDiary.getDiaryId()) // 저장된 DB ID 사용
+//                    .userId(savedDiary.getUserId())
+//                    .petId(savedDiary.getPetId())
+//                    .content(savedDiary.getContent())
+//                    .imageUrl(firstImageUrl)
+//                    .createdAt(LocalDateTime.now())   // 또는 엔티티의 생성시간 사용
+//                    .build();
+//
+//            // 카프카 전송 (설정하신 diary-topic으로 메시지 객체 전송)
+//            kafkaTemplate.send("diary-topic", eventMessage);
+//
+//            log.info("Healthcare Service로 일기 생성 이벤트 발행 성공: DiaryId {}", savedDiary.getDiaryId());
+//        } catch (Exception e) {
+//            // Kafka 전송 실패가 비즈니스 로직(일기 저장) 전체에 영향을 주지 않도록 예외 처리
+//            log.error("Kafka 이벤트 발행 실패: {}", e.getMessage());
+//        }
         return savedDiary.getDiaryId();
     }
+
+    /**
+     * [Milvus] 생성된 일기를 벡터 DB에 저장하는 메서드
+     * Spring AI의 Document 객체로 변환하여 VectorStore에 저장합니다.
+     */
+    private void saveDiaryToVectorDB(Diary diary) {
+        try {
+            log.info("Milvus Vector DB 저장 시작 - DiaryId: {}", diary.getDiaryId());
+
+            // 1. 메타데이터 생성 (검색 시 필터링에 사용할 데이터)
+            Map<String, Object> metadata = new HashMap<>();
+            metadata.put("userId", diary.getUserId());
+            metadata.put("petId", diary.getPetId());
+            metadata.put("diaryId", diary.getDiaryId());
+            metadata.put("date", diary.getDate().toString());
+            metadata.put("mood", diary.getMood());
+            if (diary.getWeather() != null) metadata.put("weather", diary.getWeather());
+            if (diary.getLocationName() != null) metadata.put("location", diary.getLocationName());
+
+            // 2. Document 생성 (내용 + 메타데이터)
+            // Embedding은 VectorStore가 설정된 모델(OpenAI 등)을 사용해 자동으로 수행함
+            Document document = new Document(diary.getContent(), metadata);
+
+            // 3. 저장
+            vectorStore.add(List.of(document));
+
+            log.info("Milvus 저장 완료");
+
+        } catch (Exception e) {
+            // 벡터 DB 저장이 실패해도 메인 트랜잭션(RDB 저장)은 롤백되지 않도록 로그만 남김 (선택 사항)
+            log.error("Milvus Vector DB 저장 실패: {}", e.getMessage(), e);
+            // 필요 시 throw new BusinessException(ErrorCode.VECTOR_STORE_ERROR);
+        }
+    }
+
+
+    private void autoArchiveDiaryImages(Long userId, List<MultipartFile> imageFiles) {
+        try {
+            imageClient.createArchive(userId, imageFiles);
+            log.info("사용자 {}의 보관함에 이미지 자동 저장 요청 완료", userId);
+        } catch (Exception e) {
+            log.warn("보관함 자동 저장 실패: {}", e.getMessage());
+        }
+    }
+
 
     // AI 분석 헬퍼 메서드 (URL 기반)
     private AiDiaryResponse generateContentWithAiFromUrls(List<String> imageUrls) {
         BeanOutputConverter<AiDiaryResponse> converter = new BeanOutputConverter<>(AiDiaryResponse.class);
+
+        // 1. 기본 시스템 프롬프트 렌더링
         String baseSystemPrompt = new PromptTemplate(systemPromptResource).render();
         SystemMessage systemMessage = new SystemMessage(baseSystemPrompt + "\n\n보관함의 사진들을 분석하여 일기를 작성하세요.");
 
@@ -246,6 +338,7 @@ public class DiaryServiceImpl implements DiaryService {
 
     private String getAddressFromCoords(Double lat, Double lng) {
         try {
+            if (kakaoRestApiKey == null || kakaoRestApiKey.isEmpty()) return null;
             String url = String.format("https://dapi.kakao.com/v2/local/geo/coord2regioncode.json?x=%s&y=%s", lng, lat);
             HttpHeaders headers = new HttpHeaders();
             headers.set("Authorization", "KakaoAK " + kakaoRestApiKey);
@@ -258,6 +351,7 @@ public class DiaryServiceImpl implements DiaryService {
                 for (JsonNode doc : documents) {
                     if ("H".equals(doc.path("region_type").asText())) return doc.path("address_name").asText();
                 }
+                return documents.get(0).path("address_name").asText();
             }
         } catch (Exception e) { log.error("주소 변환 실패"); }
         return null;

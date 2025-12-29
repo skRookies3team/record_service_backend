@@ -39,25 +39,6 @@ public class DiaryStyleServiceImpl implements DiaryStyleService {
         return diaryStyleRepository.save(defaultStyle);
     }
 
-
-//    @Override
-//    @Transactional // 쓰기 트랜잭션 (데이터 생성/수정 가능)
-//    public DiaryStyleResponse createOrUpdateStyle(Long userId, DiaryStyleRequest request) {
-//        // [Upsert 로직] 기존 스타일이 (UserId, PetId) 조합으로 있는지 확인
-//        Optional<DiaryStyle> existingStyle = diaryStyleRepository
-//                .findByUserIdAndPetId(userId, request.getPetId());
-//
-//        if (existingStyle.isPresent()) {
-//            // 있으면 업데이트
-//            return updateStyle(existingStyle.get().getId(), request, userId);
-//        }
-//
-//        // 없으면 새로 생성 (CREATE) - DTO의 toEntity 메서드 사용
-//        DiaryStyle style = request.toEntity(userId);
-//
-//        DiaryStyle saved = diaryStyleRepository.save(style);
-//        return DiaryStyleResponse.fromEntity(saved);
-//    }
 @Override
 @Transactional // 쓰기 트랜잭션 (데이터 생성/수정 가능)
 public DiaryStyleResponse createOrUpdateStyle(Long userId, DiaryStyleRequest request) {

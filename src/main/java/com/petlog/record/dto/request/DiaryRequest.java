@@ -107,6 +107,7 @@ public class DiaryRequest {
     public static class Update {
 
         @Schema(description = "수정할 내용", example = "내용 수정됨")
+        @JsonProperty("content") // 프론트에서 보내는 key값과 일치시켜야 함
         private String content;
 
         @Schema(description = "공개 범위", example = "PRIVATE")
