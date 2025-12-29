@@ -19,6 +19,9 @@ public class DiaryStyleResponse {
     @Schema(description = "스타일 설정 ID", example = "1")
     private Long id;
 
+    @Schema(description = "관련된 다이어리 ID", example = "100")
+    private Long diaryId; // [NEW]
+
     @Schema(description = "사용자 ID", example = "1")
     private Long userId;
 
@@ -56,6 +59,7 @@ public class DiaryStyleResponse {
     public static DiaryStyleResponse fromEntity(DiaryStyle style) {
         return DiaryStyleResponse.builder()
                 .id(style.getId())
+                .diaryId(style.getDiaryId()) // [NEW]
                 .userId(style.getUserId())
                 .petId(style.getPetId())
                 .galleryType(style.getGalleryType())
