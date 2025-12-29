@@ -1,5 +1,6 @@
 package com.petlog.record.dto.request;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
 import com.petlog.record.entity.Diary;
 import com.petlog.record.entity.DiaryImage;
 import com.petlog.record.entity.ImageSource;
@@ -64,6 +65,16 @@ public class DiaryRequest {
 
         @Schema(description = "첨부 이미지 목록")
         private List<Image> images;
+
+        // --- 추가된 필드: 미리보기 결과물을 다시 전달받기 위한 용도 ---
+
+        @Schema(description = "미리보기 단계에서 발급받은 이미지 URL 목록")
+        @JsonProperty("imageUrls")
+        private List<String> imageUrls;
+
+        @Schema(description = "미리보기 단계에서 발급받은 보관함(Archive) ID 목록")
+        @JsonProperty("archiveIds")
+        private List<Long> archiveIds;
 
 
         // DTO -> Diary Entity 변환
