@@ -69,7 +69,7 @@ public class DiaryServiceImpl implements DiaryService {
 
     @Override
     @Transactional
-    public AiDiaryResponse previewAiDiary(Long userId, Long petId, List<DiaryRequest.Image> images, List<MultipartFile> imageFiles) {
+    public AiDiaryResponse previewAiDiary(Long userId, Long petId, List<DiaryRequest.Image> images, List<MultipartFile> imageFiles, Double latitude, Double longitude, String date) {
         log.info("AI Diary Preview started. User: {}, Pet: {}", userId, petId);
         validateUserAndPet(userId, petId);
 
@@ -109,6 +109,28 @@ public class DiaryServiceImpl implements DiaryService {
         // 3. 응답 객체에 이미지 정보 주입 (AiDiaryResponse에 @Setter가 있어야 함)
         aiResponse.setImageUrls(finalImageUrls);
         aiResponse.setArchiveIds(finalArchiveIds);
+
+        // 3. [NEW] 실제 날씨 조회 및 보정
+        if (latitude != null && longitude != null) {
+            try {
+                // 기상청 Grid 변환 (LatXLngY는 기존에 있는 유틸 클래스 사용)
+                int[] grid = LatXLngY.convert(latitude, longitude);
+
+                // WeatherService를 통해 실제 날씨 조회
+                String realWeather = weatherService.getCurrentWeather(grid[0], grid[1]);
+
+                if (realWeather != null && !realWeather.isEmpty()) {
+                    log.info("실제 날씨 조회 성공: {}", realWeather);
+                    aiResponse.setWeather(realWeather); // AI가 추측한 날씨를 실제 날씨로 덮어씌움
+                }
+            } catch (Exception e) {
+                log.warn("날씨 조회 실패, AI 추측값 유지: {}", e.getMessage());
+            }
+        }
+
+        // 4. 위치명(LocationName) 보정 (선택 사항)
+        // 만약 프론트에서 보낸 위치 주소를 우선하고 싶다면 파라미터로 locationName도 받아서 여기서 setLocationName() 하면 됩니다.
+        // 현재는 AI 추측값 또는 프론트엔드의 로직을 따릅니다.
 
         return aiResponse;
     }

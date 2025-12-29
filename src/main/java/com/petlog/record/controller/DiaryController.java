@@ -29,24 +29,22 @@ public class DiaryController {
 
     private final DiaryService diaryService;
 
-    @Operation(summary = "AI 일기 미리보기 생성", description = "이미지를 분석하여 AI가 일기 초안을 작성하며, DB에는 저장하지 않습니다.")
+    @Operation(summary = "AI 일기 미리보기 생성", description = "이미지를 분석하여 AI가 일기 초안을 작성합니다. (위치 정보 기반 날씨 조회 포함)")
     @PostMapping(value = "/ai/preview", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public ResponseEntity<AiDiaryResponse> previewAiDiary(
-            @Parameter(description = "분석할 이미지 파일 리스트", content = @Content(mediaType = MediaType.MULTIPART_FORM_DATA_VALUE))
             @RequestPart(value = "imageFiles", required = false) List<MultipartFile> imageFiles,
-
-            @Parameter(description = "유저 및 반려동물 정보 (JSON)", content = @Content(mediaType = MediaType.APPLICATION_JSON_VALUE))
             @RequestPart("userId") Long userId,
             @RequestPart("petId") Long petId,
+            @RequestPart(value = "images", required = false) List<DiaryRequest.Image> images,
 
-            @Parameter(description = "기존 보관함 이미지 선택 시 정보", content = @Content(mediaType = MediaType.APPLICATION_JSON_VALUE))
-            @RequestPart(value = "images", required = false) List<DiaryRequest.Image> images
+            // [NEW] 위치 및 날짜 정보 추가 (required = false로 하여 없는 경우도 대비)
+            @RequestPart(value = "latitude", required = false) Double latitude,
+            @RequestPart(value = "longitude", required = false) Double longitude,
+            @RequestPart(value = "date", required = false) String date // LocalDate 파싱 필요 시 변환
     ) {
-        log.info("AI 일기 미리보기 요청 - UserId: {}, PetId: {}", userId, petId);
-
-        // 서비스에서 이미지 업로드(S3) + AI 분석을 수행하고 결과를 반환 (DB 저장 안 함)
-        AiDiaryResponse response = diaryService.previewAiDiary(userId, petId, images, imageFiles);
-
+        log.info("AI 일기 미리보기 요청 - UserId: {}, PetId: {}, Lat: {}, Lng: {}", userId, petId, latitude, longitude);
+        // 서비스 메서드 호출 시 위치 정보 전달
+        AiDiaryResponse response = diaryService.previewAiDiary(userId, petId, images, imageFiles, latitude, longitude, date);
         return ResponseEntity.ok(response);
     }
 
