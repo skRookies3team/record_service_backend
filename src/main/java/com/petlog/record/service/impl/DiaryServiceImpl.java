@@ -5,7 +5,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.petlog.record.client.ImageClient;
 import com.petlog.record.client.PetClient;
 import com.petlog.record.client.UserClient;
-import com.petlog.record.dto.DiaryEventMessage;
+//import com.petlog.record.dto.DiaryEventMessage;
 import com.petlog.record.dto.request.DiaryRequest;
 import com.petlog.record.dto.response.AiDiaryResponse;
 import com.petlog.record.dto.client.ArchiveResponse;
@@ -72,8 +72,8 @@ public class DiaryServiceImpl implements DiaryService {
     // [Milvus] VectorStore 주입 (Spring AI가 설정파일 기반으로 자동 구성)
     private final VectorStore vectorStore;
 
-    // ✅ 1. KafkaTemplate 필드 선언 (이 부분이 없어서 빨간 줄이 뜹니다)
-    private final KafkaTemplate<String, Object> kafkaTemplate;
+//    // ✅ 1. KafkaTemplate 필드 선언 (이 부분이 없어서 빨간 줄이 뜹니다)
+//    private final KafkaTemplate<String, Object> kafkaTemplate;
 
     @Value("classpath:prompts/diary-system.st")
     private Resource systemPromptResource;
@@ -160,7 +160,9 @@ public class DiaryServiceImpl implements DiaryService {
             try {
                 int[] grid = LatXLngY.convert(request.getLatitude(), request.getLongitude());
                 weatherInfo = weatherService.getCurrentWeather(grid[0], grid[1]);
-            } catch (Exception e) { weatherInfo = "맑음"; }
+            } catch (Exception e) {
+                weatherInfo = "맑음";
+            }
         }
 
         String finalLocationName = request.getLocationName();
@@ -209,32 +211,32 @@ public class DiaryServiceImpl implements DiaryService {
         // 7. [Milvus] 벡터 DB에 일기 내용 저장 (검색/RAG용)
         saveDiaryToVectorDB(savedDiary);
 
-        // ============================================================
-        // ✅ [핵심 추가] 8. Kafka를 통한 Healthcare Service 이벤트 발행
-        // ============================================================
-        try {
-            // 대표 이미지 URL 가져오기 (첫 번째 이미지)
-            String firstImageUrl = savedDiary.getImages().isEmpty() ? null : savedDiary.getImages().get(0).getImageUrl();
-
-            // DTO 구성 (사용자님이 작성하신 DiaryEventMessage 사용)
-            DiaryEventMessage eventMessage = DiaryEventMessage.builder()
-                    .eventType("DIARY_CREATED")      // 생성 이벤트 타입 명시
-                    .diaryId(savedDiary.getDiaryId()) // 저장된 DB ID 사용
-                    .userId(savedDiary.getUserId())
-                    .petId(savedDiary.getPetId())
-                    .content(savedDiary.getContent())
-                    .imageUrl(firstImageUrl)
-                    .createdAt(LocalDateTime.now())   // 또는 엔티티의 생성시간 사용
-                    .build();
-
-            // 카프카 전송 (설정하신 diary-topic으로 메시지 객체 전송)
-            kafkaTemplate.send("diary-topic", eventMessage);
-
-            log.info("Healthcare Service로 일기 생성 이벤트 발행 성공: DiaryId {}", savedDiary.getDiaryId());
-        } catch (Exception e) {
-            // Kafka 전송 실패가 비즈니스 로직(일기 저장) 전체에 영향을 주지 않도록 예외 처리
-            log.error("Kafka 이벤트 발행 실패: {}", e.getMessage());
-        }
+//        // ============================================================
+//        // ✅ [핵심 추가] 8. Kafka를 통한 Healthcare Service 이벤트 발행
+//        // ============================================================
+//        try {
+//            // 대표 이미지 URL 가져오기 (첫 번째 이미지)
+//            String firstImageUrl = savedDiary.getImages().isEmpty() ? null : savedDiary.getImages().get(0).getImageUrl();
+//
+//            // DTO 구성 (사용자님이 작성하신 DiaryEventMessage 사용)
+//            DiaryEventMessage eventMessage = DiaryEventMessage.builder()
+//                    .eventType("DIARY_CREATED")      // 생성 이벤트 타입 명시
+//                    .diaryId(savedDiary.getDiaryId()) // 저장된 DB ID 사용
+//                    .userId(savedDiary.getUserId())
+//                    .petId(savedDiary.getPetId())
+//                    .content(savedDiary.getContent())
+//                    .imageUrl(firstImageUrl)
+//                    .createdAt(LocalDateTime.now())   // 또는 엔티티의 생성시간 사용
+//                    .build();
+//
+//            // 카프카 전송 (설정하신 diary-topic으로 메시지 객체 전송)
+//            kafkaTemplate.send("diary-topic", eventMessage);
+//
+//            log.info("Healthcare Service로 일기 생성 이벤트 발행 성공: DiaryId {}", savedDiary.getDiaryId());
+//        } catch (Exception e) {
+//            // Kafka 전송 실패가 비즈니스 로직(일기 저장) 전체에 영향을 주지 않도록 예외 처리
+//            log.error("Kafka 이벤트 발행 실패: {}", e.getMessage());
+//        }
         return savedDiary.getDiaryId();
     }
 
