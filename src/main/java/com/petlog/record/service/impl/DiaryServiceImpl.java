@@ -33,14 +33,19 @@ import org.springframework.ai.model.Media;
 import org.springframework.ai.openai.OpenAiChatOptions;
 import org.springframework.ai.vectorstore.VectorStore;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.core.io.Resource;
 import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpMethod;
 import org.springframework.http.ResponseEntity;
-import org.springframework.kafka.core.KafkaTemplate;
+import com.petlog.record.infrastructure.kafka.DiaryEventProducer; // ✅ 추가
+import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.event.TransactionPhase;
+import org.springframework.transaction.event.TransactionalEventListener;
 import org.springframework.util.MimeTypeUtils;
 import org.springframework.web.client.RestTemplate;
 import org.springframework.web.multipart.MultipartFile;
@@ -71,6 +76,11 @@ public class DiaryServiceImpl implements DiaryService {
 
     // [Milvus] VectorStore 주입 (Spring AI가 설정파일 기반으로 자동 구성)
     private final VectorStore vectorStore;
+
+    // ✅ Kafka Producer 주입
+    private final DiaryEventProducer diaryEventProducer;
+
+    private final ApplicationEventPublisher eventPublisher; // ✅ 추가
 
 //    // ✅ 1. KafkaTemplate 필드 선언 (이 부분이 없어서 빨간 줄이 뜹니다)
 //    private final KafkaTemplate<String, Object> kafkaTemplate;
@@ -211,34 +221,42 @@ public class DiaryServiceImpl implements DiaryService {
         // 7. [Milvus] 벡터 DB에 일기 내용 저장 (검색/RAG용)
         saveDiaryToVectorDB(savedDiary);
 
-//        // ============================================================
-//        // ✅ [핵심 추가] 8. Kafka를 통한 Healthcare Service 이벤트 발행
-//        // ============================================================
-//        try {
-//            // 대표 이미지 URL 가져오기 (첫 번째 이미지)
-//            String firstImageUrl = savedDiary.getImages().isEmpty() ? null : savedDiary.getImages().get(0).getImageUrl();
-//
-//            // DTO 구성 (사용자님이 작성하신 DiaryEventMessage 사용)
-//            DiaryEventMessage eventMessage = DiaryEventMessage.builder()
-//                    .eventType("DIARY_CREATED")      // 생성 이벤트 타입 명시
-//                    .diaryId(savedDiary.getDiaryId()) // 저장된 DB ID 사용
-//                    .userId(savedDiary.getUserId())
-//                    .petId(savedDiary.getPetId())
-//                    .content(savedDiary.getContent())
-//                    .imageUrl(firstImageUrl)
-//                    .createdAt(LocalDateTime.now())   // 또는 엔티티의 생성시간 사용
-//                    .build();
-//
-//            // 카프카 전송 (설정하신 diary-topic으로 메시지 객체 전송)
-//            kafkaTemplate.send("diary-topic", eventMessage);
-//
-//            log.info("Healthcare Service로 일기 생성 이벤트 발행 성공: DiaryId {}", savedDiary.getDiaryId());
-//        } catch (Exception e) {
-//            // Kafka 전송 실패가 비즈니스 로직(일기 저장) 전체에 영향을 주지 않도록 예외 처리
-//            log.error("Kafka 이벤트 발행 실패: {}", e.getMessage());
-//        }
+        // ✅ 3. Kafka 전송을 위한 이벤트를 발행 (직접 호출 대신 이벤트만 던짐)
+        String firstImageUrl = savedDiary.getImages().isEmpty() ? null : savedDiary.getImages().get(0).getImageUrl();
+        eventPublisher.publishEvent(new DiaryCreatedEvent(
+                savedDiary.getDiaryId(),
+                savedDiary.getUserId(),
+                savedDiary.getPetId(),
+                savedDiary.getContent(),
+                firstImageUrl
+        ));
+
         return savedDiary.getDiaryId();
     }
+
+
+    /**
+     * ✅ 카프카 전송 전용 리스너
+     * propagation = Propagation.NOT_SUPPORTED 를 사용하여
+     * 클래스 레벨의 @Transactional 설정을 무시하고 트랜잭션 없이 실행되도록 합니다.
+     */
+    @Async
+    @Transactional(propagation = Propagation.NOT_SUPPORTED)
+    @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
+    public void handleDiaryCreatedEvent(DiaryCreatedEvent event) {
+        log.info("DB 커밋 완료됨. 카프카 이벤트 발행을 시도합니다. DiaryId: {}", event.diaryId());
+        try {
+            diaryEventProducer.publishDiaryCreatedEvent(
+                    event.diaryId(), event.userId(), event.petId(), event.content(), event.imageUrl()
+            );
+        } catch (Exception e) {
+            log.error("Kafka 전송 실패 (하지만 DB는 이미 저장됨): {}", e.getMessage());
+        }
+    }
+
+    // 이벤트 객체 정의 (간단하게 레코드로 작성)
+    public record DiaryCreatedEvent(Long diaryId, Long userId, Long petId, String content, String imageUrl) {}
+
 
     /**
      * [Milvus] 생성된 일기를 벡터 DB에 저장하는 메서드
@@ -318,13 +336,51 @@ public class DiaryServiceImpl implements DiaryService {
     public void updateDiary(Long diaryId, DiaryRequest.Update request) {
         Diary diary = diaryRepository.findById(diaryId).orElseThrow(() -> new EntityNotFoundException(ErrorCode.DIARY_NOT_FOUND));
         diary.update(request.getContent(), request.getVisibility(), request.getWeather(), request.getMood());
+
+        // ✅ [Kafka] 수정 이벤트 발행
+        try {
+            diaryEventProducer.publishDiaryUpdatedEvent(
+                    diary.getDiaryId(),
+                    diary.getUserId(),
+                    diary.getPetId(),
+                    diary.getContent()
+            );
+        } catch (Exception e) {
+            log.error("Kafka 수정 이벤트 발행 실패: {}", e.getMessage());
+        }
     }
+
+//    @Override
+//    @Transactional
+//    public void deleteDiary(Long diaryId) {
+//        Diary diary = diaryRepository.findById(diaryId).orElseThrow(() -> new EntityNotFoundException(ErrorCode.DIARY_NOT_FOUND));
+//        diaryRepository.delete(diary);
+//
+//        // ✅ Kafka 삭제 이벤트 발행
+//        diaryEventProducer.publishDiaryDeletedEvent(diaryId, userId, petId);
+//    }
 
     @Override
     @Transactional
     public void deleteDiary(Long diaryId) {
-        Diary diary = diaryRepository.findById(diaryId).orElseThrow(() -> new EntityNotFoundException(ErrorCode.DIARY_NOT_FOUND));
+        // 1. 삭제 전 엔티티 조회 (데이터가 있어야 정보를 추출할 수 있음)
+        Diary diary = diaryRepository.findById(diaryId)
+                .orElseThrow(() -> new EntityNotFoundException(ErrorCode.DIARY_NOT_FOUND));
+
+        // 2. Kafka 전송에 필요한 정보 미리 추출
+        Long userId = diary.getUserId();
+        Long petId = diary.getPetId();
+
+        // 3. DB에서 삭제
         diaryRepository.delete(diary);
+
+        // 4. ✅ Kafka 삭제 이벤트 발행 (추출한 변수 사용)
+        try {
+            diaryEventProducer.publishDiaryDeletedEvent(diaryId, userId, petId);
+            log.info("Diary 삭제 이벤트 발행 성공: diaryId {}", diaryId);
+        } catch (Exception e) {
+            log.error("Diary 삭제 이벤트 발행 실패: {}", e.getMessage());
+        }
     }
 
     private void validateUserAndPet(Long userId, Long petId) {

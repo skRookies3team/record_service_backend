@@ -58,10 +58,14 @@ dependencies {
     // Spring Boot Starters
     // ========================================
     implementation 'org.springframework.boot:spring-boot-starter-data-jpa'
+    // ✅ 추가: application.yml에 MongoDB 설정이 있으므로 의존성 주입이 필요합니다.
+    implementation 'org.springframework.boot:spring-boot-starter-data-mongodb'
     implementation 'org.springframework.boot:spring-boot-starter-thymeleaf'
     implementation 'org.springframework.boot:spring-boot-starter-validation'
     implementation 'org.springframework.boot:spring-boot-starter-web'
     implementation 'org.springframework.boot:spring-boot-starter-security'
+    // ✅ 추가: 애플리케이션 상태(Kafka 연결 상태 등) 모니터링을 위해 추천합니다.
+    implementation 'org.springframework.boot:spring-boot-starter-actuator'
     developmentOnly 'org.springframework.boot:spring-boot-devtools'
 
     // ========================================
@@ -87,7 +91,7 @@ dependencies {
     // ========================================
     // Database & GIS
     // ========================================
-    implementation 'org.hibernate.orm:hibernate-spatial:6.6.33.Final'
+    implementation 'org.hibernate.orm:hibernate-spatial:6.6.3.Final'
     implementation 'org.locationtech.jts:jts-core:1.19.0'
     runtimeOnly 'org.postgresql:postgresql'
     runtimeOnly 'org.mariadb.jdbc:mariadb-java-client'
@@ -99,9 +103,11 @@ dependencies {
     runtimeOnly 'io.netty:netty-resolver-dns-native-macos:4.1.101.Final:osx-x86_64'   // Intel Mac
 
     // ========================================
-    // Utility
+    // Utility & Env Configuration
     // ========================================
+    // ✅ 추가: 별도 코드 작성 없이 .env 파일을 Spring Environment에 자동으로 주입합니다.
     implementation 'me.paulschwarz:spring-dotenv:4.0.0'
+
     compileOnly 'org.projectlombok:lombok'
     annotationProcessor 'org.projectlombok:lombok'
 
