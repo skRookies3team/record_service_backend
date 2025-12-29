@@ -23,10 +23,8 @@ public class DiaryQueryServiceImpl implements DiaryQueryService {
 
     @Override
     public List<DiaryResponse> getDiariesByDate(Long userId, LocalDate date) {
-        LocalDateTime startOfDay = date.atStartOfDay();
-        LocalDateTime endOfDay = date.atTime(LocalTime.MAX);
-
-        List<Diary> diaries = diaryQueryRepository.findAllByUserIdAndCreatedAtBetween(userId, startOfDay, endOfDay);
+        // 수정 포인트: 'LocalDate date'가 아니라 변수명 'date'만 전달합니다.
+        List<Diary> diaries = diaryQueryRepository.findAllByUserIdAndDate(userId, date);
 
         return diaries.stream()
                 .map(DiaryResponse::fromEntity)
