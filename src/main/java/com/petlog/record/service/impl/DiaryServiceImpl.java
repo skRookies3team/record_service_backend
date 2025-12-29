@@ -33,7 +33,6 @@ import org.springframework.ai.model.Media;
 import org.springframework.ai.openai.OpenAiChatOptions;
 import org.springframework.ai.vectorstore.VectorStore;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.core.io.ByteArrayResource;
 import org.springframework.core.io.Resource;
 import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpHeaders;
@@ -274,7 +273,6 @@ public class DiaryServiceImpl implements DiaryService {
     }
 
 
-
     private void autoArchiveDiaryImages(Long userId, List<MultipartFile> imageFiles) {
         try {
             imageClient.createArchive(userId, imageFiles);
@@ -284,27 +282,6 @@ public class DiaryServiceImpl implements DiaryService {
         }
     }
 
-//    private AiDiaryResponse generateContentWithAi(byte[] imageBytes) {
-//        BeanOutputConverter<AiDiaryResponse> converter = new BeanOutputConverter<>(AiDiaryResponse.class);
-//        String systemPromptText = new PromptTemplate(systemPromptResource).render();
-//        String promptText = systemPromptText + "\n\n" + converter.getFormat();
-//
-//        try {
-//            Media imageMedia = new Media(MimeTypeUtils.IMAGE_JPEG, new ByteArrayResource(imageBytes));
-//            UserMessage userMessage = new UserMessage(promptText, List.of(imageMedia));
-//            OpenAiChatOptions options = OpenAiChatOptions.builder()
-//                    .withTemperature(0.7)
-//                    .withModel("gpt-4o")
-//                    .build();
-//
-//            Prompt prompt = new Prompt(userMessage, options);
-//            String responseContent = chatModel.call(prompt).getResult().getOutput().getContent();
-//            return converter.convert(responseContent);
-//        } catch (Exception e) {
-//            log.error("AI 생성 중 오류 발생", e);
-//            throw new RuntimeException("AI 생성 실패", e);
-//        }
-//    }
 
     // AI 분석 헬퍼 메서드 (URL 기반)
     private AiDiaryResponse generateContentWithAiFromUrls(List<String> imageUrls) {
