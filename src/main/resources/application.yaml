@@ -20,16 +20,20 @@ spring:
 
       # 신뢰성 설정
       acks: all  # 모든 replica가 확인할 때까지 대기
-      retries: 3  # 실패 시 3번 재시도
+      retries: 1  # 실패 시 3번 재시도
 
-      # 성능 설정
       properties:
-        linger.ms: 10  # 10ms 대기 후 배치 전송
-        batch.size: 16384  # 배치 크기 (16KB)
-        compression.type: snappy  # 압축 (빠른 성능)
+        # 중복 없는 전송(Idempotence) 활성화 (메시지 순서 보장 및 중복 방지)
+        enable.idempotence: true
 
-        # JSON 직렬화 설정
-        spring.json.add.type.headers: false  # __TypeId__ 헤더 제거
+        # ✅ 핵심 설정: 연결이 안 될 때 최대 1.5초만 기다리고 바로 에러를 뱉게 함
+        max.block.ms: 1500
+        # 요청 타임아웃 단축
+        request.timeout.ms: 3000
+
+        # JSON 직렬화 옵션
+        # 다른 서비스에서 역직렬화할 때 패키지 경로 문제를 방지하기 위해 헤더 정보 제거
+        spring.json.add.type.headers: false
 
   # ========================================
   # Spring AI 설정
@@ -79,6 +83,10 @@ spring:
             connectTimeout: 5000
             readTimeout: 5000
 
+# ========================================
+# 서버 및 모니터링 설정
+# ========================================
+
 # 서버 포트 (spring: 외부로 분리)
 server:
   port: 8087
@@ -89,7 +97,10 @@ logging:
     com.petlog.diary: DEBUG
     org.springframework.kafka: INFO
 
-# 외부 서비스 및 API 설정
+# ========================================
+# 외부 서비스 및 API 엔드포인트
+# ========================================
+
 openapi:
   service:
     url: ${API_GATEWAY}
