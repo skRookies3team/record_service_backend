@@ -1,35 +1,124 @@
 spring:
-  config:
-    import: "optional:file:.env[.properties]"
-
   application:
     name: petlog
 
-  # PostgreSQL 설정
-  datasource:
-    url: "${DB_URL}"
-    username: "${DB_USERNAME}"
-    password: "${DB_PASSWORD}"
-    driverClassName: org.postgresql.Driver
+  profiles:
+    active: dev
 
-  jpa:
-    hibernate:
-      ddl-auto: update
-    show-sql: true
-    database-platform: org.hibernate.dialect.PostgreSQLDialect
+  config:
+    import: "optional:file:.env[.properties]"
 
-  # MongoDB 설정
+  # ========================================
+  # Kafka 설정 (spring: 바로 아래로 이동)
+  # ========================================
+  kafka:
+    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS}
+    producer:
+      # Serializer 설정
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
+
+      # 신뢰성 설정
+      acks: all  # 모든 replica가 확인할 때까지 대기
+      retries: 1  # 실패 시 3번 재시도
+
+      properties:
+        # 중복 없는 전송(Idempotence) 활성화 (메시지 순서 보장 및 중복 방지)
+        enable.idempotence: true
+
+        # ✅ 핵심 설정: 연결이 안 될 때 최대 1.5초만 기다리고 바로 에러를 뱉게 함
+        max.block.ms: 1500
+        # 요청 타임아웃 단축
+        request.timeout.ms: 3000
+
+        # JSON 직렬화 옵션
+        # 다른 서비스에서 역직렬화할 때 패키지 경로 문제를 방지하기 위해 헤더 정보 제거
+        spring.json.add.type.headers: false
+
+  # ========================================
+  # Spring AI 설정
+  # ========================================
+  ai:
+    openai:
+      api-key: ${OPENAI_API_KEY}
+      chat:
+        options:
+          model: gpt-4o
+      embedding:
+        enabled: true
+        options:
+          model: text-embedding-3-small # 1536 차원
+
+    # ========================================
+    # Milvus 설정
+    # ========================================
+    vectorstore:
+      milvus:
+        client:
+          host: ${MILVUS_HOST}
+          port: 19530
+        collection-name: vector_store
+        embedding-dimension: 1536 # OpenAI 모델과 일치 (Perfect!)
+        index-type: IVF_FLAT
+        metric-type: COSINE
+        database-name: default
+
+  # ========================================
+  # 기타 데이터 및 클라우드 설정
+  # ========================================
+  servlet:
+    multipart:
+      max-file-size: 10MB
+      max-request-size: 10MB
+
   data:
     mongodb:
       uri: "${MONGO_URI}"
 
+  cloud:
+    openfeign:
+      client:
+        config:
+          default:
+            connectTimeout: 5000
+            readTimeout: 5000
+
+# ========================================
+# 서버 및 모니터링 설정
+# ========================================
+
+# 서버 포트 (spring: 외부로 분리)
 server:
   port: 8087
 
+# 로깅 설정
+logging:
+  level:
+    com.petlog.diary: DEBUG
+    org.springframework.kafka: INFO
 
+# ========================================
+# 외부 서비스 및 API 엔드포인트
+# ========================================
 
-#openapi:
-#  service:
-#    # API Gateway 포트
-#    url: "${API_GATEWAY}"
+openapi:
+  service:
+    url: ${API_GATEWAY}
 
+external:
+  user-service:
+    url: ${USER_SERVICE_URL}
+  pet-service:
+    url: ${PET_SERVICE_URL}
+  image-service:
+    url: ${IMAGE_SERVICE_URL}
+  notification-service:
+    url: ${NOTIFICATION_SERVICE_URL:http://localhost:8083}
+  storage-service:
+    url: ${STORAGE_SERVICE_URL:http://localhost:8084}
+  weather:
+    api-key: ${WEATHER_API_KEY}
+    asos-api-key: ${ASOS_API_KEY}
+
+kakao:
+  rest-api-key: ${KAKAO_REST_API_KEY}

@@ -1,7 +1,7 @@
 plugins {
-	id 'java'
-	id 'org.springframework.boot' version '3.5.7'
-	id 'io.spring.dependency-management' version '1.1.7'
+    id 'java'
+    id 'org.springframework.boot' version '3.5.7'
+    id 'io.spring.dependency-management' version '1.1.7'
 }
 
 group = 'com.example'
@@ -9,49 +9,124 @@ version = '0.0.1-SNAPSHOT'
 description = 'Demo project for Spring Boot'
 
 java {
-	toolchain {
-		languageVersion = JavaLanguageVersion.of(17)
-	}
+    toolchain {
+        languageVersion = JavaLanguageVersion.of(17)
+    }
 }
 
 configurations {
-	compileOnly {
-		extendsFrom annotationProcessor
-	}
+    compileOnly {
+        extendsFrom annotationProcessor
+    }
+
+    // ✅ 전역 로깅 충돌 제거
+    all {
+        exclude group: 'org.slf4j', module: 'slf4j-reload4j'
+        exclude group: 'org.slf4j', module: 'slf4j-log4j12'
+        exclude group: 'ch.qos.reload4j', module: 'reload4j'
+        exclude group: 'log4j', module: 'log4j'
+    }
 }
 
 repositories {
-	mavenCentral()
+    mavenCentral()
+    maven { url 'https://repo.spring.io/milestone' }
+}
+
+// 버전 변수 설정
+ext {
+    springCloudVersion = "2025.0.0"
+    springAiVersion = "1.0.0-M4"
 }
 
 dependencies {
-	implementation 'org.springframework.boot:spring-boot-starter-data-jpa'
-	implementation 'org.springframework.boot:spring-boot-starter-thymeleaf'
-	implementation 'org.springframework.boot:spring-boot-starter-validation'
-	implementation 'org.springframework.boot:spring-boot-starter-web'
-	implementation 'org.springframework.kafka:spring-kafka'
-    implementation 'org.springframework.boot:spring-boot-starter-security'
-    // JWT
-    implementation 'io.jsonwebtoken:jjwt-api:0.12.3'
-    implementation 'io.jsonwebtoken:jjwt-impl:0.12.3'
-    implementation 'io.jsonwebtoken:jjwt-jackson:0.12.3'
-    //Swagger
-    implementation 'org.springdoc:springdoc-openapi-starter-webmvc-ui:2.7.0'
+    // ========================================
+    // Spring AI
+    // ========================================
+    implementation 'org.springframework.ai:spring-ai-bedrock-ai-spring-boot-starter'
+    implementation 'org.springframework.ai:spring-ai-openai-spring-boot-starter'
+    implementation 'org.springframework.ai:spring-ai-milvus-store-spring-boot-starter'
 
-    implementation 'org.postgresql:postgresql:42.7.8'
+    // ✅ Milvus SDK (Hadoop 의존성에서 로깅 제거)
+    implementation('io.milvus:milvus-sdk-java:2.3.5') {
+        exclude group: 'org.slf4j', module: 'slf4j-reload4j'
+        exclude group: 'ch.qos.reload4j', module: 'reload4j'
+        exclude group: 'log4j', module: 'log4j'
+    }
+
+    // ========================================
+    // Spring Boot Starters
+    // ========================================
+    implementation 'org.springframework.boot:spring-boot-starter-data-jpa'
+    // ✅ 추가: application.yml에 MongoDB 설정이 있으므로 의존성 주입이 필요합니다.
+    implementation 'org.springframework.boot:spring-boot-starter-data-mongodb'
+    implementation 'org.springframework.boot:spring-boot-starter-thymeleaf'
+    implementation 'org.springframework.boot:spring-boot-starter-validation'
+    implementation 'org.springframework.boot:spring-boot-starter-web'
+    implementation 'org.springframework.boot:spring-boot-starter-security'
+    // ✅ 추가: 애플리케이션 상태(Kafka 연결 상태 등) 모니터링을 위해 추천합니다.
+    implementation 'org.springframework.boot:spring-boot-starter-actuator'
+    developmentOnly 'org.springframework.boot:spring-boot-devtools'
+
+    // ========================================
+    // Messaging & Cloud
+    // ========================================
+    implementation 'org.springframework.kafka:spring-kafka'
+    implementation 'org.springframework.cloud:spring-cloud-starter-openfeign'
+    implementation 'org.springframework.cloud:spring-cloud-starter-loadbalancer'
+
+    // ========================================
+    // Security & JWT
+    // ========================================
+    implementation 'io.jsonwebtoken:jjwt-api:0.12.3'
+    runtimeOnly 'io.jsonwebtoken:jjwt-impl:0.12.3'
+    runtimeOnly 'io.jsonwebtoken:jjwt-jackson:0.12.3'
+
+    // ========================================
+    // API Documentation (Swagger)
+    // ========================================
+    implementation 'org.springdoc:springdoc-openapi-starter-webmvc-ui:2.7.0'
+    implementation 'io.swagger.core.v3:swagger-annotations-jakarta:2.2.25'
+
+    // ========================================
+    // Database & GIS
+    // ========================================
+    implementation 'org.hibernate.orm:hibernate-spatial:6.6.3.Final'
+    implementation 'org.locationtech.jts:jts-core:1.19.0'
+    runtimeOnly 'org.postgresql:postgresql'
+    runtimeOnly 'org.mariadb.jdbc:mariadb-java-client'
+
+    // ========================================
+    // Mac Netty DNS 해결 (M1/M2 & Intel)
+    // ========================================
+    runtimeOnly 'io.netty:netty-resolver-dns-native-macos:4.1.101.Final:osx-aarch_64' // Apple Silicon
+    runtimeOnly 'io.netty:netty-resolver-dns-native-macos:4.1.101.Final:osx-x86_64'   // Intel Mac
+
+    // ========================================
+    // Utility & Env Configuration
+    // ========================================
+    // ✅ 추가: 별도 코드 작성 없이 .env 파일을 Spring Environment에 자동으로 주입합니다.
+    implementation 'me.paulschwarz:spring-dotenv:4.0.0'
 
     compileOnly 'org.projectlombok:lombok'
-	developmentOnly 'org.springframework.boot:spring-boot-devtools'
-	runtimeOnly 'org.mariadb.jdbc:mariadb-java-client'
-	annotationProcessor 'org.projectlombok:lombok'
-	testImplementation 'org.springframework.boot:spring-boot-starter-test'
-	testImplementation 'org.springframework.kafka:spring-kafka-test'
-	testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
+    annotationProcessor 'org.projectlombok:lombok'
 
-
+    // ========================================
+    // Test
+    // ========================================
+    testImplementation 'org.springframework.boot:spring-boot-starter-test'
+    testImplementation 'org.springframework.kafka:spring-kafka-test'
+    testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
 }
 
+// Dependency Management (Cloud & AI BOM)
+dependencyManagement {
+    imports {
+        mavenBom "org.springframework.cloud:spring-cloud-dependencies:${springCloudVersion}"
+        mavenBom "org.springframework.ai:spring-ai-bom:${springAiVersion}"
+    }
+}
 
 tasks.named('test') {
-	useJUnitPlatform()
+    useJUnitPlatform()
 }
