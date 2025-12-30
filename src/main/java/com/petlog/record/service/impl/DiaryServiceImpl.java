@@ -53,6 +53,7 @@ import org.springframework.web.multipart.MultipartFile;
 import java.net.URL;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.format.DateTimeParseException;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -130,6 +131,17 @@ public class DiaryServiceImpl implements DiaryService {
         // 2. AI 분석 실행
         AiDiaryResponse aiResponse = generateContentWithAiFromUrls(finalImageUrls);
 
+        // ✅ [수정] 날짜 정보 보정 및 응답 객체 주입
+        LocalDate diaryDate;
+        try {
+            diaryDate = (date != null && !date.isEmpty()) ? LocalDate.parse(date) : LocalDate.now();
+        } catch (DateTimeParseException e) {
+            log.warn("Invalid date format: {}, defaulting to today", date);
+            diaryDate = LocalDate.now();
+        }
+        aiResponse.setDate(diaryDate); // ✅ DTO에 날짜 세팅
+
+
         // 3. 응답 객체에 이미지 정보 주입 (AiDiaryResponse에 @Setter가 있어야 함)
         aiResponse.setImageUrls(finalImageUrls);
         aiResponse.setArchiveIds(finalArchiveIds);
@@ -162,8 +174,7 @@ public class DiaryServiceImpl implements DiaryService {
     @Override
     @Transactional
     public Long saveDiary(DiaryRequest.Create request) {
-        log.info("Final Diary Saving. User: {}", request.getUserId());
-
+        log.info("Final Diary Saving. User: {}, Title: {}", request.getUserId(), request.getTitle());
         // 1. 날씨 및 주소 정보 보정
         String weatherInfo = request.getWeather();
         if ((weatherInfo == null || weatherInfo.isEmpty()) && request.getLatitude() != null && request.getLongitude() != null) {
@@ -184,6 +195,7 @@ public class DiaryServiceImpl implements DiaryService {
         Diary diary = Diary.builder()
                 .userId(request.getUserId())
                 .petId(request.getPetId())
+                .title(request.getTitle()) // ✅ 추가
                 .content(request.getContent())
                 .mood(request.getMood())
                 .weather(weatherInfo)
@@ -271,6 +283,7 @@ public class DiaryServiceImpl implements DiaryService {
             metadata.put("userId", diary.getUserId());
             metadata.put("petId", diary.getPetId());
             metadata.put("diaryId", diary.getDiaryId());
+            metadata.put("title", diary.getTitle()); // ✅ 검색 필터링/결과용 추가
             metadata.put("date", diary.getDate().toString());
             metadata.put("mood", diary.getMood());
             if (diary.getWeather() != null) metadata.put("weather", diary.getWeather());
@@ -309,7 +322,12 @@ public class DiaryServiceImpl implements DiaryService {
 
         // 1. 기본 시스템 프롬프트 렌더링
         String baseSystemPrompt = new PromptTemplate(systemPromptResource).render();
-        SystemMessage systemMessage = new SystemMessage(baseSystemPrompt + "\n\n보관함의 사진들을 분석하여 일기를 작성하세요.");
+        //SystemMessage systemMessage = new SystemMessage(baseSystemPrompt + "\n\n보관함의 사진들을 분석하여 일기를 작성하세요.");
+        String customInstruction = "\n\n" +
+                "1. 사진의 상황을 파악하여 감성적이고 잘 어울리는 일기 제목(title)을 생성하세요.\n" +
+                "2. 보관함의 사진들을 분석하여 일기 내용(content)을 작성하세요.";
+
+        SystemMessage systemMessage = new SystemMessage(baseSystemPrompt + customInstruction);
 
         try {
             List<Media> mediaList = new ArrayList<>();
@@ -331,13 +349,48 @@ public class DiaryServiceImpl implements DiaryService {
         return DiaryResponse.fromEntity(diary);
     }
 
+//    @Override
+//    @Transactional
+//    public void updateDiary(Long diaryId, DiaryRequest.Update request) {
+//        Diary diary = diaryRepository.findById(diaryId).orElseThrow(() -> new EntityNotFoundException(ErrorCode.DIARY_NOT_FOUND));
+//        diary.update(request.getContent(), request.getVisibility(), request.getWeather(), request.getMood());
+//
+//        // ✅ [Kafka] 수정 이벤트 발행
+//        try {
+//            diaryEventProducer.publishDiaryUpdatedEvent(
+//                    diary.getDiaryId(),
+//                    diary.getUserId(),
+//                    diary.getPetId(),
+//                    diary.getContent()
+//            );
+//        } catch (Exception e) {
+//            log.error("Kafka 수정 이벤트 발행 실패: {}", e.getMessage());
+//        }
+//    }
+
     @Override
     @Transactional
     public void updateDiary(Long diaryId, DiaryRequest.Update request) {
-        Diary diary = diaryRepository.findById(diaryId).orElseThrow(() -> new EntityNotFoundException(ErrorCode.DIARY_NOT_FOUND));
-        diary.update(request.getContent(), request.getVisibility(), request.getWeather(), request.getMood());
+        Diary diary = diaryRepository.findById(diaryId)
+                .orElseThrow(() -> new EntityNotFoundException(ErrorCode.DIARY_NOT_FOUND));
 
-        // ✅ [Kafka] 수정 이벤트 발행
+        // 1. 엔티티 수정 (제목 필드 반영)
+        // Diary 엔티티의 update 메서드가 (title, content, visibility, weather, mood) 순서라고 가정합니다.
+        diary.update(
+                request.getTitle(),
+                request.getContent(),
+                request.getDate(),
+                request.getVisibility(),
+                request.getWeather(),
+                request.getMood()
+        );
+
+        // 2. [Milvus] 벡터 DB 정보 갱신
+        // 제목이나 내용이 바뀌었으므로 임베딩을 다시 생성하여 저장합니다.
+        // Spring AI의 VectorStore.add는 보통 같은 ID(metadata의 diaryId)를 기반으로 덮어쓰기하거나 새로 생성합니다.
+        saveDiaryToVectorDB(diary);
+
+        // 3. [Kafka] 수정 이벤트 발행
         try {
             diaryEventProducer.publishDiaryUpdatedEvent(
                     diary.getDiaryId(),

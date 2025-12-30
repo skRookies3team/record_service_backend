@@ -42,6 +42,13 @@ public class DiaryController {
         log.info("AI 일기 미리보기 요청 - UserId: {}, PetId: {}, Lat: {}, Lng: {}", userId, petId, latitude, longitude);
         // 서비스 메서드 호출 시 위치 정보 전달
         AiDiaryResponse response = diaryService.previewAiDiary(userId, petId, images, imageFiles, latitude, longitude, date);
+
+        // ✅ 콘솔에서 제목이 눈에 잘 띄도록 구분선과 함께 출력
+        log.info("=================================================");
+        log.info("🎯 AI 생성 제목: {}", response.getTitle());
+        log.info("📝 AI 생성 내용 요약: {}...", response.getContent().substring(0, Math.min(response.getContent().length(), 20)));
+        log.info("=================================================");
+
         return ResponseEntity.ok(response);
     }
 
@@ -50,7 +57,8 @@ public class DiaryController {
     public ResponseEntity<Long> createDiary(
             @Valid @RequestBody DiaryRequest.Create request
     ) {
-        log.info("일기 최종 저장 요청 - UserId: {}, PetId: {}", request.getUserId(), request.getPetId());
+        // 로그에 제목(title)을 추가하여 저장이 잘 요청되는지 확인합니다.
+        log.info("일기 최종 저장 요청 - UserId: {}, Title: {}", request.getUserId(), request.getTitle());
 
         Long diaryId = diaryService.saveDiary(request);
 

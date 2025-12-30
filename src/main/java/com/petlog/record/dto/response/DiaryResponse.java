@@ -6,6 +6,7 @@ import com.petlog.record.entity.Visibility;
 import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.*;
 
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.stream.Collectors;
@@ -21,6 +22,10 @@ public class DiaryResponse {
     @Schema(description = "다이어리 ID", example = "1")
     private Long diaryId;
 
+    // ✅ 제목 필드 추가
+    @Schema(description = "일기 제목", example = "햇살 좋은 날의 산책")
+    private String title;
+
     @Schema(description = "작성자(사용자) ID", example = "1")
     private Long userId;
 
@@ -29,6 +34,10 @@ public class DiaryResponse {
 
     @Schema(description = "일기 내용", example = "오늘 공원에서 산책하며 즐거운 시간을 보냈다.")
     private String content;
+
+    // ✅ 일기 기록 날짜 필드 추가
+    @Schema(description = "일기 기록 날짜", example = "2023-10-25")
+    private LocalDate date;
 
     @Schema(description = "위치 주소", example = "서울특별시 마포구...")
     private String locationName;
@@ -66,9 +75,11 @@ public class DiaryResponse {
     public static DiaryResponse fromEntity(Diary diary) {
         return DiaryResponse.builder()
                 .diaryId(diary.getDiaryId())
+                .title(diary.getTitle()) // ✅ 엔티티에서 제목 가져오기 추가
                 .userId(diary.getUserId())
                 .petId(diary.getPetId())
                 .content(diary.getContent())
+                .date(diary.getDate()) // ✅ 날짜 매핑 추가
                 .locationName(diary.getLocationName())
                 .latitude(diary.getLatitude())
                 .longitude(diary.getLongitude())
