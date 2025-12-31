@@ -10,6 +10,7 @@ import com.petlog.record.dto.request.DiaryRequest;
 import com.petlog.record.dto.response.AiDiaryResponse;
 import com.petlog.record.dto.client.ArchiveResponse;
 import com.petlog.record.dto.response.DiaryResponse;
+import com.petlog.record.dto.response.DiaryStyleResponse;
 import com.petlog.record.entity.*;
 import com.petlog.record.exception.BusinessException;
 import com.petlog.record.exception.EntityNotFoundException;
@@ -17,6 +18,7 @@ import com.petlog.record.exception.ErrorCode;
 import com.petlog.record.repository.DiaryArchiveRepository;
 import com.petlog.record.repository.DiaryRepository;
 import com.petlog.record.service.DiaryService;
+import com.petlog.record.service.DiaryStyleService;
 import com.petlog.record.service.WeatherService;
 import com.petlog.record.util.LatXLngY;
 import feign.FeignException;
@@ -66,6 +68,7 @@ import java.util.Map;
 public class DiaryServiceImpl implements DiaryService {
 
     private final DiaryRepository diaryRepository;
+    private final DiaryStyleService diaryStyleService;
     private final DiaryArchiveRepository diaryArchiveRepository;
     private final UserClient userClient;
     private final PetClient petClient;
@@ -346,27 +349,22 @@ public class DiaryServiceImpl implements DiaryService {
     @Override
     public DiaryResponse getDiary(Long diaryId) {
         Diary diary = diaryRepository.findById(diaryId).orElseThrow(() -> new EntityNotFoundException(ErrorCode.DIARY_NOT_FOUND));
-        return DiaryResponse.fromEntity(diary);
+
+        // 2. Entity -> DTO 변환
+        DiaryResponse response = DiaryResponse.fromEntity(diary);
+
+        // 3. ✅ 스타일 조회 및 설정
+        try {
+            DiaryStyleResponse styleResponse = diaryStyleService.getDiaryStyle(diaryId);
+            response.setStyle(styleResponse);
+        } catch (Exception e) {
+            // 스타일이 없어도 다이어리 조회는 성공
+            log.warn("No style found for diary {}", diaryId);
+            response.setStyle(null);
+        }
+        return response;
     }
 
-//    @Override
-//    @Transactional
-//    public void updateDiary(Long diaryId, DiaryRequest.Update request) {
-//        Diary diary = diaryRepository.findById(diaryId).orElseThrow(() -> new EntityNotFoundException(ErrorCode.DIARY_NOT_FOUND));
-//        diary.update(request.getContent(), request.getVisibility(), request.getWeather(), request.getMood());
-//
-//        // ✅ [Kafka] 수정 이벤트 발행
-//        try {
-//            diaryEventProducer.publishDiaryUpdatedEvent(
-//                    diary.getDiaryId(),
-//                    diary.getUserId(),
-//                    diary.getPetId(),
-//                    diary.getContent()
-//            );
-//        } catch (Exception e) {
-//            log.error("Kafka 수정 이벤트 발행 실패: {}", e.getMessage());
-//        }
-//    }
 
     @Override
     @Transactional

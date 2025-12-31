@@ -120,4 +120,14 @@ public DiaryStyleResponse createOrUpdateStyle(Long userId, DiaryStyleRequest req
     public DiaryStyleResponse getPetStyle(Long petId, Long userId) {
         return getUserStyle(userId, petId);
     }
+
+    // DiaryStyleServiceImpl.java
+    @Override
+    @Transactional(readOnly = true)
+    public DiaryStyleResponse getDiaryStyle(Long diaryId) {
+        DiaryStyle style = diaryStyleRepository.findByDiaryId(diaryId)
+                .orElse(null); // 스타일이 없으면 null 반환
+
+        return style != null ? DiaryStyleResponse.fromEntity(style) : null;
+    }
 }

@@ -17,4 +17,6 @@ public interface DiaryStyleService {
 
     // 특정 펫의 스타일 설정 조회 (getUserStyle과 동일 로직으로 처리 가정)
     DiaryStyleResponse getPetStyle(Long petId, Long userId);
+
+    DiaryStyleResponse getDiaryStyle(Long diaryId);
 }

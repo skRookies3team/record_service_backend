@@ -69,6 +69,10 @@ public class DiaryResponse {
     @Schema(description = "첨부 이미지 목록")
     private List<Image> images;
 
+    // ✅ 스타일 정보 추가
+    @Schema(description = "다이어리 스타일 설정")
+    private DiaryStyleResponse style;
+
     /**
      * Entity -> DTO 변환 로직 (Service에서 호출)
      */
