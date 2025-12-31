@@ -22,6 +22,7 @@ import com.petlog.record.service.DiaryStyleService;
 import com.petlog.record.service.WeatherService;
 import com.petlog.record.util.LatXLngY;
 import feign.FeignException;
+import io.milvus.param.collection.FlushParam;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.ai.chat.messages.SystemMessage;
@@ -42,6 +43,7 @@ import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpMethod;
 import org.springframework.http.ResponseEntity;
 import com.petlog.record.infrastructure.kafka.DiaryEventProducer; // ✅ 추가
+import io.milvus.client.MilvusClient;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Propagation;
@@ -80,6 +82,8 @@ public class DiaryServiceImpl implements DiaryService {
 
     // [Milvus] VectorStore 주입 (Spring AI가 설정파일 기반으로 자동 구성)
     private final VectorStore vectorStore;
+    // ✅ MilvusClient 추가 주입 (Flush 명령용)
+    private final MilvusClient milvusClient;
 
     // ✅ Kafka Producer 주입
     private final DiaryEventProducer diaryEventProducer;
@@ -298,6 +302,12 @@ public class DiaryServiceImpl implements DiaryService {
 
             // 3. 저장
             vectorStore.add(List.of(document));
+
+            // ✅ 2. 강제로 디스크에 쓰기 (Flush) - MinIO 용량 확인용
+            // 'spring_ai_vectors'는 Spring AI Milvus VectorStore의 기본 컬렉션명입니다.
+            milvusClient.flush(FlushParam.newBuilder()
+                    .addCollectionName("spring_ai_vectors")
+                    .build());
 
             log.info("Milvus 저장 완료");
 
