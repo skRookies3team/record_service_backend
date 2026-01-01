@@ -22,6 +22,10 @@ public class Diary {
     @Id @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long diaryId;
 
+    // ✅ 제목 필드 추가
+    @Column(length = 200)
+    private String title;
+
     // 작성자 ID (FK) - 필수값
     @Column(nullable = false)
     private Long userId;
@@ -76,8 +80,10 @@ public class Diary {
     private List<DiaryImage> images = new ArrayList<>();
 
     // === [비즈니스 로직] ===
-    public void update(String content, Visibility visibility, String weather, String mood) {
+    public void update(String title, String content, LocalDate date, Visibility visibility, String weather, String mood) {
+        this.title = title;
         this.content = content;
+        this.date = date; // ✅ 이 부분이 추가되어야 함
         this.visibility = visibility;
         this.weather = weather;
         this.mood = mood;

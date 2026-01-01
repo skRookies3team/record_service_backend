@@ -14,10 +14,15 @@ spring:
 
   jpa:
     hibernate:
-      ddl-auto: validate # 배포 시 스키마 검증만 수행 (데이터 손실 방지)
+      ddl-auto: update # 배포 시 스키마 검증만 수행 (데이터 손실 방지)
     show-sql: false      # SQL 로그 비활성화 (성능 최적화)
     open-in-view: false  # OSIV 비활성화 (DB 커넥션 점유 시간 단축)
-    database-platform: org.hibernate.dialect.PostgreSQLDialect
+
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+        format_sql: false
+        default_schema: diary
 
 # Swagger 설정 (배포 환경 비활성화 - 보안)
 springdoc:

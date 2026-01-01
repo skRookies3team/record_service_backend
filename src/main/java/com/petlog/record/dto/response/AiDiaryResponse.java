@@ -2,6 +2,7 @@ package com.petlog.record.dto.response;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import lombok.*;
 
+import java.time.LocalDate;
 import java.util.List;
 
 @Getter
@@ -12,6 +13,9 @@ import java.util.List;
 @ToString
 public class AiDiaryResponse {
 
+    // ✅ AI가 생성한 제목 필드 추가
+    @JsonProperty("title")
+    private String title;
     // AI가 생성한 일기 본문
     @JsonProperty("content")
     private String content;
@@ -28,6 +32,9 @@ public class AiDiaryResponse {
     private Double latitude;
     @JsonProperty("longitude")
     private Double longitude;
+    // ✅ 기록될 날짜 정보 추가
+    @JsonProperty("date")
+    private LocalDate date;
     // NOTE: diaryId는 저장되지 않았으므로 포함하지 않습니다.
 
     // --- 추가된 필드 ---

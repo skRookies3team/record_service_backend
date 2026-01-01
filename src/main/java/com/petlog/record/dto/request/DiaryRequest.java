@@ -31,6 +31,10 @@ public class DiaryRequest {
         @Schema(description = "관련된 펫 ID", example = "1")
         private Long petId;
 
+        // ✅ 제목 필드 추가
+        @Schema(description = "일기 제목", example = "초코와 함께한 즐거운 산책")
+        private String title;
+
         @Schema(description = "관련된 사진 보관함 ID", example = "10")
         private Long photoArchiveId;
 
@@ -82,6 +86,8 @@ public class DiaryRequest {
             Diary diary = Diary.builder()
                     .userId(this.userId)
                     .petId(this.petId)
+                    .title(this.title) // 추가됨
+                    .date(this.date)
                     //.photoArchiveId(this.photoArchiveId)
                     .content(this.content)
                     .visibility(this.visibility)
@@ -106,9 +112,16 @@ public class DiaryRequest {
     @Schema(description = "일기 수정 요청 DTO")
     public static class Update {
 
+        // ✅ 수정 시 제목 필드 추가
+        @Schema(description = "수정할 제목", example = "수정된 산책 일기")
+        private String title;
+
         @Schema(description = "수정할 내용", example = "내용 수정됨")
         @JsonProperty("content") // 프론트에서 보내는 key값과 일치시켜야 함
         private String content;
+
+        @Schema(description = "일기 날짜 (과거 일기 작성 시 필수)", example = "2023-10-25")
+        private LocalDate date;
 
         @Schema(description = "공개 범위", example = "PRIVATE")
         private Visibility visibility;
