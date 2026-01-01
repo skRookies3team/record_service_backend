@@ -2,21 +2,21 @@ version: '3.5'
 
 services:
 #  # 1. PostgreSQL + PostGIS (RDB)
-#  postgres:
-#    image: postgis/postgis:15-3.4-alpine
-#    container_name: petlog_pg_master
-#    restart: always
-#    ports:
-#      - "5432:5432"
-#    environment:
-#      POSTGRES_USER: postgres
-#      POSTGRES_PASSWORD: 1234
-#      POSTGRES_DB: postgres
-#    volumes:
-#      - pg_data:/var/lib/postgresql/data
-#      - ./initdb:/docker-entrypoint-initdb.d
-#    networks:
-#      - petlog-net
+  postgres:
+    image: postgis/postgis:15-3.4-alpine
+    container_name: petlog_pg_master
+    restart: always
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: 1234
+      POSTGRES_DB: postgres
+    volumes:
+      - pg_data:/var/lib/postgresql/data
+      - ./initdb:/docker-entrypoint-initdb.d
+    networks:
+      - petlog-net
 
   # 2.  Milvus 인프라 - etcd
   etcd:
@@ -173,7 +173,7 @@ networks:
     driver: bridge
 
 volumes:
-#  pg_data:
+  pg_data:
   milvus_etcd:
   milvus_minio:
   milvus_data:
