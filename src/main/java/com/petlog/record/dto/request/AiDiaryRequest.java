@@ -28,6 +28,10 @@ public class AiDiaryRequest {
     @JsonProperty("longitude")
     private Double longitude;
 
+    // ✅ AI 미리보기 기준 날짜 추가
+    @JsonProperty("date")
+    private String date;
+
     // 이미 보관함에 있는 사진을 선택했을 경우의 리스트
     @JsonProperty("images")
     private List<DiaryRequest.Image> images;

@@ -40,6 +40,9 @@ services:
     volumes:
       - milvus_minio:/export
     command: server /export
+    ports:
+      - "9000:9000"    # API 포트
+      - "9001:9001"    # 콘솔(GUI) 포트
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
       interval: 30s

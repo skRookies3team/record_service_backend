@@ -3,6 +3,8 @@ package com.petlog.record.entity;
 import jakarta.persistence.*;
 import lombok.*;
 import org.hibernate.annotations.CreationTimestamp;
+import org.hibernate.annotations.OnDelete;
+import org.hibernate.annotations.OnDeleteAction;
 import org.hibernate.annotations.UpdateTimestamp;
 
 import java.time.LocalDateTime;
@@ -24,6 +26,7 @@ public class DiaryArchive {
     // Diary 엔티티와 연관관계를 맺어 어떤 일기에 속한 사진인지 식별합니다.
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "diary_id", nullable = false)
+    @OnDelete(action = OnDeleteAction.CASCADE)  // 👈 추가
     private Diary diary;
 
     // 연결된 보관함 사진 ID (외부 서비스 PK)
