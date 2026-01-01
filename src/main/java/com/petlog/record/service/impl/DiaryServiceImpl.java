@@ -100,7 +100,7 @@ public class DiaryServiceImpl implements DiaryService {
     private String kakaoRestApiKey;
 
     @Override
-    @Transactional
+//    @Transactional
     public AiDiaryResponse previewAiDiary(Long userId, Long petId, List<DiaryRequest.Image> images, List<MultipartFile> imageFiles, Double latitude, Double longitude, String date) {
         log.info("AI Diary Preview started. User: {}, Pet: {}", userId, petId);
         validateUserAndPet(userId, petId);
