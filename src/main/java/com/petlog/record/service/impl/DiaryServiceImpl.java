@@ -12,11 +12,13 @@ import com.petlog.record.dto.client.ArchiveResponse;
 import com.petlog.record.dto.response.DiaryResponse;
 import com.petlog.record.dto.response.DiaryStyleResponse;
 import com.petlog.record.entity.*;
+import com.petlog.record.entity.mongo.PhotoMetadata;
 import com.petlog.record.exception.BusinessException;
 import com.petlog.record.exception.EntityNotFoundException;
 import com.petlog.record.exception.ErrorCode;
 import com.petlog.record.repository.jpa.DiaryArchiveRepository;
 import com.petlog.record.repository.jpa.DiaryRepository;
+import com.petlog.record.repository.mongo.PhotoMetadataRepository;
 import com.petlog.record.service.DiaryService;
 import com.petlog.record.service.DiaryStyleService;
 import com.petlog.record.service.WeatherService;
@@ -66,6 +68,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 
 @Slf4j
 @Service
@@ -76,6 +79,8 @@ public class DiaryServiceImpl implements DiaryService {
     private final DiaryRepository diaryRepository;
     private final DiaryStyleService diaryStyleService;
     private final DiaryArchiveRepository diaryArchiveRepository;
+    private final PhotoMetadataRepository photoMetadataRepository; // ✅ 추가 주입
+
     private final UserClient userClient;
     private final PetClient petClient;
     private final ImageClient imageClient;
@@ -257,7 +262,31 @@ public class DiaryServiceImpl implements DiaryService {
                 diary.addImage(diaryImage);
             }
         }
+
+
         Diary savedDiary = diaryRepository.save(diary);
+
+        // 4. [추가] MongoDB에 사진별 비정형 메타데이터 저장
+        // 4. [수정] MongoDB에 사진별 비정형 메타데이터 저장
+        if (request.getImages() != null && !request.getImages().isEmpty()) {
+            // 저장된 엔티티들을 URL을 키로 하는 Map으로 변환 (정확한 ID 매핑을 위해)
+            Map<String, Long> urlToIdMap = savedDiary.getImages().stream()
+                    .collect(Collectors.toMap(DiaryImage::getImageUrl, DiaryImage::getImageId));
+
+            for (DiaryRequest.Image imageDto : request.getImages()) {
+                if (imageDto.getMetadata() != null && !imageDto.getMetadata().isEmpty()) {
+                    Long savedImageId = urlToIdMap.get(imageDto.getImageUrl());
+
+                    if (savedImageId != null) {
+                        PhotoMetadata mongoData = PhotoMetadata.builder()
+                                .imageId(savedImageId)
+                                .metadata(imageDto.getMetadata())
+                                .build();
+                        photoMetadataRepository.save(mongoData);
+                    }
+                }
+            }
+        }
 
 
         // 4. Diary-Archive 매핑 저장
@@ -411,10 +440,33 @@ public class DiaryServiceImpl implements DiaryService {
 
     @Override
     public DiaryResponse getDiary(Long diaryId) {
+        // 1. PostgreSQL에서 일기 조회
         Diary diary = diaryRepository.findById(diaryId).orElseThrow(() -> new EntityNotFoundException(ErrorCode.DIARY_NOT_FOUND));
+
+        // 2. 이미지 ID 목록 추출
+        List<Long> imageIds = diary.getImages().stream()
+                .map(DiaryImage::getImageId)
+                .toList();
+
+        // 3. MongoDB에서 해당 이미지들의 메타데이터 일괄 조회
+        // 3. MongoDB 메타데이터 조회
+        Map<Long, Map<String, Object>> metadataMap = photoMetadataRepository.findAllByImageIdIn(imageIds)
+                .stream()
+                .collect(Collectors.toMap(
+                        PhotoMetadata::getImageId,
+                        PhotoMetadata::getMetadata,
+                        (existing, replacement) -> existing // 중복 키 방지
+                ));
+
+        // 4. Entity -> DTO 변환 시 메타데이터 주입
+        List<DiaryResponse.Image> imageDtos = diary.getImages().stream()
+                .map(img -> DiaryResponse.Image.fromEntity(img, metadataMap.get(img.getImageId())))
+                .toList();
 
         // 2. Entity -> DTO 변환
         DiaryResponse response = DiaryResponse.fromEntity(diary);
+
+        response.setImages(imageDtos); // 메타데이터가 포함된 이미지 리스트로 교체
 
         // 3. ✅ 스타일 조회 및 설정
         try {
@@ -485,10 +537,19 @@ public class DiaryServiceImpl implements DiaryService {
         Long userId = diary.getUserId();
         Long petId = diary.getPetId();
 
-        // 3. DB에서 삭제
+        // MongoDB 데이터 삭제를 위해 이미지 ID 추출
+        List<Long> imageIds = diary.getImages().stream()
+                .map(DiaryImage::getImageId)
+                .toList();
+
+        // 3. MongoDB 메타데이터 삭제
+        photoMetadataRepository.deleteAllByImageIdIn(imageIds);
+
+        // 4. DB에서 삭제
+        // 4. PostgreSQL 데이터 삭제
         diaryRepository.delete(diary);
 
-        // 4. ✅ Kafka 삭제 이벤트 발행 (추출한 변수 사용)
+        // 5. ✅ Kafka 삭제 이벤트 발행 (추출한 변수 사용)
         try {
             diaryEventProducer.publishDiaryDeletedEvent(diaryId, userId, petId);
             log.info("Diary 삭제 이벤트 발행 성공: diaryId {}", diaryId);

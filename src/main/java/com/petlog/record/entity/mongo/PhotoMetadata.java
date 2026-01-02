@@ -1,6 +1,6 @@
-package com.petlog.record.entity;
+package com.petlog.record.entity.mongo;
 
-import jakarta.persistence.Id;
+import org.springframework.data.annotation.Id;
 import lombok.*;
 import org.springframework.data.mongodb.core.mapping.Document;
 import java.util.Map;
@@ -22,4 +22,5 @@ public class PhotoMetadata {
     private Map<String, Object> metadata;
 
     private String deviceModel; // 촬영 기기 (자주 쓰는 필드는 따로 빼도 됨)
+
 }
