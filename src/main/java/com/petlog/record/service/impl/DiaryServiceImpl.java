@@ -15,8 +15,8 @@ import com.petlog.record.entity.*;
 import com.petlog.record.exception.BusinessException;
 import com.petlog.record.exception.EntityNotFoundException;
 import com.petlog.record.exception.ErrorCode;
-import com.petlog.record.repository.DiaryArchiveRepository;
-import com.petlog.record.repository.DiaryRepository;
+import com.petlog.record.repository.jpa.DiaryArchiveRepository;
+import com.petlog.record.repository.jpa.DiaryRepository;
 import com.petlog.record.service.DiaryService;
 import com.petlog.record.service.DiaryStyleService;
 import com.petlog.record.service.WeatherService;
@@ -49,7 +49,6 @@ import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpMethod;
 import org.springframework.http.ResponseEntity;
 import com.petlog.record.infrastructure.kafka.DiaryEventProducer; // ✅ 추가
-import io.milvus.client.MilvusClient;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Propagation;
@@ -62,7 +61,6 @@ import org.springframework.web.multipart.MultipartFile;
 
 import java.net.URL;
 import java.time.LocalDate;
-import java.time.LocalDateTime;
 import java.time.format.DateTimeParseException;
 import java.util.ArrayList;
 import java.util.HashMap;

@@ -1,11 +1,10 @@
-package com.petlog.record.repository;
+package com.petlog.record.repository.jpa;
 
 import com.petlog.record.entity.Diary;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 
 import java.time.LocalDate;
-import java.time.LocalDateTime;
 import java.util.List;
 
 @Repository
