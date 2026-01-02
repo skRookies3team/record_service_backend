@@ -21,8 +21,14 @@ import com.petlog.record.service.DiaryService;
 import com.petlog.record.service.DiaryStyleService;
 import com.petlog.record.service.WeatherService;
 import com.petlog.record.util.LatXLngY;
-import feign.FeignException;
+
+// ✅ Milvus 관련 임포트가 정확히 선언되어야 합니다.
+import io.milvus.client.MilvusClient;
+import io.milvus.param.R;
+import io.milvus.param.collection.HasCollectionParam;
 import io.milvus.param.collection.FlushParam;
+
+import feign.FeignException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.ai.chat.messages.SystemMessage;
@@ -81,7 +87,12 @@ public class DiaryServiceImpl implements DiaryService {
     private final RestTemplate restTemplate;
 
     // [Milvus] VectorStore 주입 (Spring AI가 설정파일 기반으로 자동 구성)
+    // ✅ application.yml의 설정값을 읽어옵니다. (기본값: vector_store)
+    @Value("${spring.ai.vectorstore.milvus.collection-name:vector_store}")
+    private String collectionName;
+
     private final VectorStore vectorStore;
+
     // ✅ MilvusClient 추가 주입 (Flush 명령용)
     private final MilvusClient milvusClient;
 
@@ -189,7 +200,7 @@ public class DiaryServiceImpl implements DiaryService {
                 int[] grid = LatXLngY.convert(request.getLatitude(), request.getLongitude());
                 weatherInfo = weatherService.getCurrentWeather(grid[0], grid[1]);
             } catch (Exception e) {
-                weatherInfo = "맑음";
+                weatherInfo = "맑은 날씨";
             }
         }
 
@@ -215,7 +226,28 @@ public class DiaryServiceImpl implements DiaryService {
                 .build();
 
         // 3. 이미지 정보 연결
-        if (request.getImageUrls() != null) {
+        log.info("=== 이미지 처리 시작 ===");
+        log.info("request.getImages(): {}", request.getImages());
+        log.info("request.getImageUrls(): {}", request.getImageUrls());
+
+        // 3. 이미지 정보 연결
+        if (request.getImages() != null && !request.getImages().isEmpty()) {
+            // ✅ images 필드 사용 (상세 정보 포함)
+            for (DiaryRequest.Image imageDto : request.getImages()) {
+                DiaryImage diaryImage = DiaryImage.builder()
+                        .imageUrl(imageDto.getImageUrl())
+                        .userId(request.getUserId())
+                        .imgOrder(imageDto.getImgOrder())
+                        .mainImage(imageDto.getMainImage())
+                        .source(imageDto.getSource())
+                        .build();
+                diary.addImage(diaryImage);
+
+                log.info("  ✅ DB에 저장됨: order={}, mainImage={}, source={}",
+                        imageDto.getImgOrder(), imageDto.getMainImage(), imageDto.getSource());
+            }
+        } else if (request.getImageUrls() != null) {
+            // 하위 호환성: 기존 방식도 지원
             for (int i = 0; i < request.getImageUrls().size(); i++) {
                 DiaryImage diaryImage = DiaryImage.builder()
                         .imageUrl(request.getImageUrls().get(i))
@@ -227,8 +259,8 @@ public class DiaryServiceImpl implements DiaryService {
                 diary.addImage(diaryImage);
             }
         }
-
         Diary savedDiary = diaryRepository.save(diary);
+
 
         // 4. Diary-Archive 매핑 저장
         if (request.getArchiveIds() != null) {
@@ -283,7 +315,8 @@ public class DiaryServiceImpl implements DiaryService {
      */
     private void saveDiaryToVectorDB(Diary diary) {
         try {
-            log.info("Milvus Vector DB 저장 시작 - DiaryId: {}", diary.getDiaryId());
+            log.info("Milvus Vector DB 저장 시작 (컬렉션: {}) - DiaryId: {}", collectionName, diary.getDiaryId());
+
 
             // 1. 메타데이터 생성 (검색 시 필터링에 사용할 데이터)
             Map<String, Object> metadata = new HashMap<>();
@@ -305,9 +338,13 @@ public class DiaryServiceImpl implements DiaryService {
 
             // ✅ 2. 강제로 디스크에 쓰기 (Flush) - MinIO 용량 확인용
             // 'spring_ai_vectors'는 Spring AI Milvus VectorStore의 기본 컬렉션명입니다.
-            milvusClient.flush(FlushParam.newBuilder()
-                    .addCollectionName("spring_ai_vectors")
-                    .build());
+            // ✅ 2. 안전한 Flush 호출 (hasCollection 성공 시에만)
+            if (hasCollection(collectionName)) {
+                milvusClient.flush(FlushParam.newBuilder()
+                        .addCollectionName(collectionName)
+                        .build());
+                log.info("Milvus 저장 및 Flush 완료: {}", collectionName);
+            }
 
             log.info("Milvus 저장 완료");
 
@@ -315,6 +352,24 @@ public class DiaryServiceImpl implements DiaryService {
             // 벡터 DB 저장이 실패해도 메인 트랜잭션(RDB 저장)은 롤백되지 않도록 로그만 남김 (선택 사항)
             log.error("Milvus Vector DB 저장 실패: {}", e.getMessage(), e);
             // 필요 시 throw new BusinessException(ErrorCode.VECTOR_STORE_ERROR);
+        }
+    }
+
+    /**
+     * ✅ Milvus 컬렉션 존재 여부 확인 (빨간 줄 해결 버전)
+     */
+    private boolean hasCollection(String name) {
+        try {
+            // Milvus SDK의 응답은 R<Boolean> 타입입니다.
+            R<Boolean> response = milvusClient.hasCollection(HasCollectionParam.newBuilder()
+                    .withCollectionName(name)
+                    .build());
+
+            // 응답이 성공(Success)이고 데이터가 true일 때만 true 반환
+            return response.getStatus() == R.Status.Success.getCode() && Boolean.TRUE.equals(response.getData());
+        } catch (Exception e) {
+            log.error("Milvus 컬렉션 확인 중 오류 발생: {}", e.getMessage());
+            return false;
         }
     }
 
