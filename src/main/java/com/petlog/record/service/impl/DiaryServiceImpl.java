@@ -282,7 +282,9 @@ public class DiaryServiceImpl implements DiaryService {
                                 .imageId(savedImageId)
                                 .metadata(imageDto.getMetadata())
                                 .build();
+                        log.info("MongoDB 저장 시도 - imageId: {}", savedImageId);
                         photoMetadataRepository.save(mongoData);
+                        log.info("MongoDB 저장 완료");
                     }
                 }
             }
