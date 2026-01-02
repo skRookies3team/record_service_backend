@@ -1,0 +1,14 @@
+.github/
+.git/
+.gitignore
+.gitattributes
+
+.idea/
+.gradle/
+
+.env
+README.md
+
+initdb/
+
+docker-compose.yml
