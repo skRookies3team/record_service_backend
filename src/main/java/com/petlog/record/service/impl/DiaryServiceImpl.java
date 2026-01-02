@@ -215,7 +215,28 @@ public class DiaryServiceImpl implements DiaryService {
                 .build();
 
         // 3. 이미지 정보 연결
-        if (request.getImageUrls() != null) {
+        log.info("=== 이미지 처리 시작 ===");
+        log.info("request.getImages(): {}", request.getImages());
+        log.info("request.getImageUrls(): {}", request.getImageUrls());
+
+        // 3. 이미지 정보 연결
+        if (request.getImages() != null && !request.getImages().isEmpty()) {
+            // ✅ images 필드 사용 (상세 정보 포함)
+            for (DiaryRequest.Image imageDto : request.getImages()) {
+                DiaryImage diaryImage = DiaryImage.builder()
+                        .imageUrl(imageDto.getImageUrl())
+                        .userId(request.getUserId())
+                        .imgOrder(imageDto.getImgOrder())
+                        .mainImage(imageDto.getMainImage())
+                        .source(imageDto.getSource())
+                        .build();
+                diary.addImage(diaryImage);
+
+                log.info("  ✅ DB에 저장됨: order={}, mainImage={}, source={}",
+                        imageDto.getImgOrder(), imageDto.getMainImage(), imageDto.getSource());
+            }
+        } else if (request.getImageUrls() != null) {
+            // 하위 호환성: 기존 방식도 지원
             for (int i = 0; i < request.getImageUrls().size(); i++) {
                 DiaryImage diaryImage = DiaryImage.builder()
                         .imageUrl(request.getImageUrls().get(i))
@@ -227,8 +248,8 @@ public class DiaryServiceImpl implements DiaryService {
                 diary.addImage(diaryImage);
             }
         }
-
         Diary savedDiary = diaryRepository.save(diary);
+
 
         // 4. Diary-Archive 매핑 저장
         if (request.getArchiveIds() != null) {
