@@ -1,4 +1,4 @@
-package com.petlog.record.repository;
+package com.petlog.record.repository.jpa;
 
 import com.petlog.record.entity.Recap;
 import org.springframework.data.jpa.repository.JpaRepository;

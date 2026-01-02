@@ -6,7 +6,7 @@ import com.petlog.record.dto.response.RecapResponse;
 import com.petlog.record.entity.Recap;
 import com.petlog.record.exception.EntityNotFoundException;
 import com.petlog.record.exception.ErrorCode;
-import com.petlog.record.repository.RecapRepository;
+import com.petlog.record.repository.jpa.RecapRepository;
 import com.petlog.record.service.RecapService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
