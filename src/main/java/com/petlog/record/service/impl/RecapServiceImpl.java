@@ -1,12 +1,17 @@
 package com.petlog.record.service.impl;
 
-import com.petlog.record.client.NotificationClient;
 import com.petlog.record.dto.request.RecapRequest;
+import com.petlog.record.dto.response.RecapAiResponse;
 import com.petlog.record.dto.response.RecapResponse;
+import com.petlog.record.entity.Diary;
 import com.petlog.record.entity.Recap;
+import com.petlog.record.entity.RecapHighlight;
+import com.petlog.record.entity.RecapStatus;
 import com.petlog.record.exception.EntityNotFoundException;
 import com.petlog.record.exception.ErrorCode;
+import com.petlog.record.repository.jpa.DiaryRepository;
 import com.petlog.record.repository.jpa.RecapRepository;
+import com.petlog.record.service.RecapAiService;
 import com.petlog.record.service.RecapService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -23,31 +28,60 @@ import java.util.stream.Collectors;
 public class RecapServiceImpl implements RecapService {
 
     private final RecapRepository recapRepository;
-    private final NotificationClient notificationClient;
+    private final DiaryRepository diaryRepository;
+    private final RecapAiService recapAiService;
 
     @Override
     @Transactional
-    public Long createRecap(RecapRequest.Create request) {
-        // 1. DTO -> Entity 변환 (DTO 내부 로직 사용)
-        Recap recap = request.toEntity();
+    public Long createAiRecap(RecapRequest.Generate request) {
+        log.info("AI 리캡 생성 시작 - 펫 ID: {}", request.getPetId());
 
-        // 2. 저장 (Cascade 설정으로 인해 Highlight도 자동 저장됨)
-        Recap savedRecap = recapRepository.save(recap);
+        // 1. 해당 기간의 일기 목록 조회
+        List<Diary> diaries = diaryRepository.findAllByPetIdAndDateBetween(
+                request.getPetId(),
+                request.getPeriodStart(),
+                request.getPeriodEnd()
+        );
 
-        // 3. 알림 발송 (로컬 테스트 시 알림 서비스가 없어도 동작하도록 예외 처리)
-        /*
-        try {
-            notificationClient.sendNotification(new NotificationServiceClient.NotificationRequest(
-                    request.getUserId(),
-                    "✨ 월간 리캡이 도착했습니다!",
-                    savedRecap.getTitle() + "의 추억을 확인해보세요.",
-                    "RECAP_CREATED"
-            ));
-        } catch (Exception e) {
-            log.warn("알림 서비스 호출 실패: {}", e.getMessage());
+        if (diaries.isEmpty()) {
+            throw new RuntimeException("해당 기간에 작성된 일기가 없어 리캡을 생성할 수 없습니다.");
         }
-        */
 
+        // 2. AI 분석을 위한 텍스트 리스트 추출
+        List<String> diaryTexts = diaries.stream()
+                .map(Diary::getContent)
+                .collect(Collectors.toList());
+
+        // 3. 연도와 월 추출
+        int year = request.getPeriodStart().getYear();
+        int month = request.getPeriodStart().getMonthValue();
+        String petName = (request.getPetName() != null) ? request.getPetName() : "우리 아이";
+
+        // 4. AI 서비스 호출
+        RecapAiResponse aiData = recapAiService.analyzeMonth(petName, year, month, diaryTexts);
+
+        // 5. Recap 엔티티 생성 및 하이라이트 추가
+        Recap recap = Recap.builder()
+                .userId(request.getUserId())
+                .petId(request.getPetId())
+                .title(aiData.getTitle())
+                .summary(aiData.getSummary())
+                .periodStart(request.getPeriodStart())
+                .periodEnd(request.getPeriodEnd())
+                .momentCount(diaries.size())
+                .status(RecapStatus.GENERATED)
+                .build();
+
+        if (aiData.getHighlights() != null) {
+            aiData.getHighlights().forEach(h -> {
+                recap.addHighlight(RecapHighlight.builder()
+                        .title(h.getTitle())
+                        .content(h.getContent())
+                        .build());
+            });
+        }
+
+        Recap savedRecap = recapRepository.save(recap);
         return savedRecap.getRecapId();
     }
 
@@ -56,36 +90,20 @@ public class RecapServiceImpl implements RecapService {
         Recap recap = recapRepository.findById(recapId)
                 .orElseThrow(() -> new EntityNotFoundException(ErrorCode.RECAP_NOT_FOUND));
 
-        // 1. Entity -> DTO 변환 (메서드명 변경: from -> fromEntity)
-        RecapResponse.Detail response = RecapResponse.Detail.fromEntity(recap);
-
-        // 2. [TODO] 헬스케어 서비스 호출하여 건강 데이터 채우기 (추후 구현)
-        /*
-        try {
-            // HealthReportDto healthData = healthClient.getReport(...);
-            // if (healthData != null) {
-            //      response.setAvgHeartRate(healthData.getHeartRate());
-            //      ...
-            // }
-        } catch (Exception e) {
-            log.warn("헬스케어 데이터 조회 실패 (리캡 상세 조회는 계속 진행): {}", e.getMessage());
-        }
-        */
-
-        return response;
+        return RecapResponse.Detail.fromEntity(recap);
     }
 
     @Override
     public List<RecapResponse.Simple> getAllRecaps(Long userId) {
         return recapRepository.findAllByUserIdOrderByCreatedAtDesc(userId).stream()
-                .map(RecapResponse.Simple::fromEntity) // 메서드명 변경: from -> fromEntity
+                .map(RecapResponse.Simple::fromEntity)
                 .collect(Collectors.toList());
     }
 
     @Override
     public List<RecapResponse.Simple> getRecapsByPet(Long petId) {
         return recapRepository.findAllByPetIdOrderByCreatedAtDesc(petId).stream()
-                .map(RecapResponse.Simple::fromEntity) // 메서드명 변경: from -> fromEntity
+                .map(RecapResponse.Simple::fromEntity)
                 .collect(Collectors.toList());
     }
 }
