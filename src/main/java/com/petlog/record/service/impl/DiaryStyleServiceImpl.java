@@ -6,7 +6,7 @@ import com.petlog.record.entity.DiaryStyle;
 import com.petlog.record.exception.ErrorCode;
 import com.petlog.record.exception.ResourceNotFoundException;
 import com.petlog.record.exception.UnauthorizedException;
-import com.petlog.record.repository.DiaryStyleRepository;
+import com.petlog.record.repository.jpa.DiaryStyleRepository;
 import com.petlog.record.service.DiaryStyleService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
