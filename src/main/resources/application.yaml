@@ -3,7 +3,7 @@ spring:
     name: petlog
 
   profiles:
-    active: prod
+    active: dev
 
   config:
     import: "optional:file:.env[.properties]"
@@ -36,6 +36,19 @@ spring:
         # 다른 서비스에서 역직렬화할 때 패키지 경로 문제를 방지하기 위해 헤더 정보 제거
         spring.json.add.type.headers: false
 
+  # ========================================
+  # Milvus 설정  ✅ kafka 밖
+  # ========================================
+  vectorstore:
+    milvus:
+      client:
+        host: ${MILVUS_HOST}
+        port: 19530
+      collection-name: vector_store
+      embedding-dimension: 1536
+      index-type: IVF_FLAT
+      metric-type: COSINE
+      database-name: default
   # ========================================
   # Spring AI 설정
   # ========================================
