@@ -10,9 +10,12 @@ public interface RecapService {
      */
     Long createAiRecap(RecapRequest.Generate request);
 
-    Long createWaitingRecap(RecapRequest.Create request); // 추가
+    Long createWaitingRecap(RecapRequest.Create request);
 
-    RecapResponse.Detail getRecap(Long recapId);
+    /**
+     * 특정 리캡의 상세 정보를 조회합니다. (보안 검증 포함)
+     */
+    RecapResponse.Detail getRecap(Long recapId, Long userId);
 
     List<RecapResponse.Simple> getAllRecaps(Long userId);
 

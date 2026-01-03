@@ -76,10 +76,17 @@ public class RecapController {
         return ResponseEntity.created(URI.create("/api/recaps/" + recapId)).body(response);
     }
 
-    @Operation(summary = "리캡 상세 조회", description = "생성된 리캡의 상세 내용과 AI 하이라이트를 조회합니다.")
+    /**
+     * [보안 강화] 리캡 상세 조회
+     * @param recapId 조회할 리캡의 ID
+     * @param userId 현재 로그인한 사용자의 ID (보안 검증용)
+     */
+    @Operation(summary = "리캡 상세 조회", description = "생성된 리캡의 상세 내용을 조회합니다. (본인 것만 조회 가능)")
     @GetMapping("/{recapId}")
-    public ResponseEntity<RecapResponse.Detail> getRecap(@PathVariable Long recapId) {
-        return ResponseEntity.ok(recapService.getRecap(recapId));
+    public ResponseEntity<RecapResponse.Detail> getRecap(
+            @PathVariable Long recapId,
+            @RequestParam Long userId) { // 쿼리 파라미터로 userId를 받아 서비스에 전달
+        return ResponseEntity.ok(recapService.getRecap(recapId, userId));
     }
 
     @Operation(summary = "사용자별 리캡 목록 조회", description = "특정 사용자가 보유한 모든 리캡 목록을 조회합니다.")

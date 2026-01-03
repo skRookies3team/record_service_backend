@@ -133,13 +133,29 @@ public class RecapServiceImpl implements RecapService {
         return savedRecap.getRecapId();
     }
 
+    /**
+     * 리캡 상세 조회 (보안 강화 버전)
+     * @param recapId 조회할 리캡 ID
+     * @param userId 현재 로그인한 사용자의 ID (검증용)
+     */
     @Override
-    public RecapResponse.Detail getRecap(Long recapId) {
+    @Transactional(readOnly = true)
+    public RecapResponse.Detail getRecap(Long recapId, Long userId) {
         Recap recap = recapRepository.findById(recapId)
                 .orElseThrow(() -> new EntityNotFoundException(ErrorCode.RECAP_NOT_FOUND));
 
+        // [보안 로직] 리캡의 소유자가 현재 요청한 유저와 일치하는지 검증
+        if (!recap.getUserId().equals(userId)) {
+            log.warn("[Security] 권한 없는 리캡 접근 시도 - User: {}, RecapID: {}", userId, recapId);
+            throw new RuntimeException("해당 리캡을 조회할 권한이 없습니다.");
+        }
+
+        recap.getImageUrls().size();
+        recap.getHighlights().size();
+
         return RecapResponse.Detail.fromEntity(recap);
     }
+
 
     @Override
     public List<RecapResponse.Simple> getAllRecaps(Long userId) {
