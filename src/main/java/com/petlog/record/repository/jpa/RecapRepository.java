@@ -1,9 +1,11 @@
 package com.petlog.record.repository.jpa;
 
 import com.petlog.record.entity.Recap;
+import com.petlog.record.entity.RecapStatus;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 
+import java.time.LocalDate;
 import java.util.List;
 
 @Repository
@@ -14,4 +16,7 @@ public interface RecapRepository extends JpaRepository<Recap, Long> {
 
     // 2. 펫별 리캡 조회 (최신순)
     List<Recap> findAllByPetIdOrderByCreatedAtDesc(Long petId);
+
+    List<Recap> findAllByStatus(RecapStatus status); // 추가
+
 }

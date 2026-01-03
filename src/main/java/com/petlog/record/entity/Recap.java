@@ -36,7 +36,12 @@ public class Recap {
     private LocalDate periodStart; // 기간 시작
     private LocalDate periodEnd;   // 기간 끝
 
-    private String mainImageUrl;   // 배경 이미지
+    // 단일 이미지 대신 여러 이미지를 저장하기 위한 설정
+    @ElementCollection(fetch = FetchType.LAZY)
+    @CollectionTable(name = "RECAP_IMAGES", joinColumns = @JoinColumn(name = "recap_id"))
+    @Column(name = "image_url")
+    @Builder.Default
+    private List<String> imageUrls = new ArrayList<>();
 
     // === [리스트 카드 UI용 데이터] ===
     private Integer momentCount; // 예: 45 (45개의 순간)
@@ -62,6 +67,10 @@ public class Recap {
     public void addHighlight(RecapHighlight highlight) {
         this.highlights.add(highlight);
         highlight.setRecap(this);
+    }
+    // 이미지 리스트 업데이트 편의 메서드
+    public void updateImageUrls(List<String> urls) {
+        this.imageUrls = urls;
     }
 }
 

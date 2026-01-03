@@ -10,6 +10,8 @@ public interface RecapService {
      */
     Long createAiRecap(RecapRequest.Generate request);
 
+    Long createWaitingRecap(RecapRequest.Create request); // 추가
+
     RecapResponse.Detail getRecap(Long recapId);
 
     List<RecapResponse.Simple> getAllRecaps(Long userId);
