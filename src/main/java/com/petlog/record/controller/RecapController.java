@@ -85,7 +85,8 @@ public class RecapController {
     @GetMapping("/{recapId}")
     public ResponseEntity<RecapResponse.Detail> getRecap(
             @PathVariable Long recapId,
-            @RequestParam Long userId) { // 쿼리 파라미터로 userId를 받아 서비스에 전달
+            @RequestParam Long userId)
+            { // 쿼리 파라미터로 userId를 받아 서비스에 전달
         return ResponseEntity.ok(recapService.getRecap(recapId, userId));
     }
 

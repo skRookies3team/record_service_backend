@@ -16,6 +16,7 @@ import com.petlog.record.service.RecapAiService;
 import com.petlog.record.service.RecapService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -143,16 +144,14 @@ public class RecapServiceImpl implements RecapService {
     public RecapResponse.Detail getRecap(Long recapId, Long userId) {
         Recap recap = recapRepository.findById(recapId)
                 .orElseThrow(() -> new EntityNotFoundException(ErrorCode.RECAP_NOT_FOUND));
-
         // [보안 로직] 리캡의 소유자가 현재 요청한 유저와 일치하는지 검증
         if (!recap.getUserId().equals(userId)) {
             log.warn("[Security] 권한 없는 리캡 접근 시도 - User: {}, RecapID: {}", userId, recapId);
-            throw new RuntimeException("해당 리캡을 조회할 권한이 없습니다.");
+            throw new AccessDeniedException("해당 리캡을 조회할 권한이 없습니다.");
         }
-
+        // Lazy loading 초기화
         recap.getImageUrls().size();
         recap.getHighlights().size();
-
         return RecapResponse.Detail.fromEntity(recap);
     }
 
