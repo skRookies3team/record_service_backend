@@ -49,6 +49,7 @@ spring:
       index-type: IVF_FLAT
       metric-type: COSINE
       database-name: default
+
   # ========================================
   # Spring AI 설정
   # ========================================
