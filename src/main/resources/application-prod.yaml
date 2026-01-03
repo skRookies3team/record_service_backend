@@ -24,20 +24,9 @@ spring:
         format_sql: false
         default_schema: diary
 
-    # ========================================
-    # Milvus 설정
-    # ========================================
-    vectorstore:
-      milvus:
-        client:
-          host: ${MILVUS_HOST}
-          port: 19530
-        collection-name: vector_store
-        embedding-dimension: 1536 # OpenAI 모델과 일치 (Perfect!)
-        index-type: IVF_FLAT
-        metric-type: COSINE
-        database-name: default
-        initialize-schema: false
+  vectorstore:
+    milvus:
+      initialize-schema: false
 
 # Swagger 설정 (배포 환경 비활성화 - 보안)
 springdoc:
