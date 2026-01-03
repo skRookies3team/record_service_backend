@@ -40,8 +40,9 @@ public class RecapResponse {
         @Schema(description = "집계 기간 종료일", example = "2024-03-31")
         private LocalDate periodEnd;
 
-        @Schema(description = "대표 이미지 URL (기존 일기 중 선정되거나 기본 이미지)", example = "https://bucket.s3.region.amazonaws.com/cover.jpg")
-        private String mainImageUrl;
+        // 단일 이미지 URL 대신 이미지 리스트로 변경
+        @Schema(description = "리캡에 포함된 대표 이미지 리스트 (최대 8장)")
+        private List<String> imageUrls;
 
         @Schema(description = "분석에 포함된 추억(일기) 개수", example = "15")
         private Integer momentCount;
@@ -67,7 +68,7 @@ public class RecapResponse {
                     .summary(recap.getSummary())
                     .periodStart(recap.getPeriodStart())
                     .periodEnd(recap.getPeriodEnd())
-                    .mainImageUrl(recap.getMainImageUrl())
+                    .imageUrls(recap.getImageUrls())
                     .momentCount(recap.getMomentCount())
                     .status(recap.getStatus().name())
                     .createdAt(recap.getCreatedAt())
@@ -92,7 +93,7 @@ public class RecapResponse {
         @Schema(description = "리캡 제목", example = "2024년 3월의 기록")
         private String title;
 
-        @Schema(description = "대표 이미지 URL", example = "https://bucket.s3.region.amazonaws.com/thumbnail.jpg")
+        @Schema(description = "목록 표시용 대표 이미지 (이미지 리스트 중 첫 번째)")
         private String mainImageUrl;
 
         @Schema(description = "추억 개수", example = "15")
@@ -117,7 +118,8 @@ public class RecapResponse {
             return Simple.builder()
                     .recapId(recap.getRecapId())
                     .title(recap.getTitle())
-                    .mainImageUrl(recap.getMainImageUrl())
+                    // 목록에서는 첫 번째 이미지만 대표로 보여줌
+                    .mainImageUrl(recap.getImageUrls().isEmpty() ? null : recap.getImageUrls().get(0))
                     .momentCount(recap.getMomentCount())
                     .status(recap.getStatus().name())
                     .periodStart(recap.getPeriodStart())

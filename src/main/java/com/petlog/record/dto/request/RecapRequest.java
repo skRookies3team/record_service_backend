@@ -71,8 +71,8 @@ public class RecapRequest {
         @Schema(description = "집계 기간 종료일", example = "2024-03-31")
         private LocalDate periodEnd;
 
-        @Schema(description = "대표 이미지 URL", example = "https://bucket.s3.region.amazonaws.com/recap-cover.jpg")
-        private String mainImageUrl;
+        @Schema(description = "대표 이미지 URL 리스트", example = "[\"https://image1.jpg\", \"https://image2.jpg\"]")
+        private List<String> imageUrls;
 
         @Schema(description = "포함된 추억(일기) 개수", example = "15")
         private Integer momentCount;
@@ -80,8 +80,15 @@ public class RecapRequest {
         @Schema(description = "리캡 하이라이트 목록")
         private List<HighlightDto> highlights;
 
-        // DTO -> Entity 변환 메서드
+        @Schema(description = "리캡 상태", example = "WAITING")
+        private String status; // 추가
+
+        // DTO -> Entity 변환 메서드 수정
         public Recap toEntity() {
+            RecapStatus recapStatus = (this.status != null)
+                    ? RecapStatus.valueOf(this.status)
+                    : RecapStatus.GENERATED;
+
             Recap recap = Recap.builder()
                     .userId(this.userId)
                     .petId(this.petId)
@@ -89,10 +96,11 @@ public class RecapRequest {
                     .summary(this.summary)
                     .periodStart(this.periodStart)
                     .periodEnd(this.periodEnd)
-                    .mainImageUrl(this.mainImageUrl)
+                    .imageUrls(this.imageUrls)
                     .momentCount(this.momentCount)
-                    .status(RecapStatus.GENERATED)
+                    .status(recapStatus) // 동적으로 설정
                     .build();
+
 
             if (this.highlights != null) {
                 this.highlights.stream()
