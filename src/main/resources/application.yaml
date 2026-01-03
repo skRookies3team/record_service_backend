@@ -12,7 +12,7 @@ spring:
   # Kafka 설정 (spring: 바로 아래로 이동)
   # ========================================
   kafka:
-#    bootstrap-servers: localhost:19092
+    #bootstrap-servers: localhost:19092
     bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS}
     producer:
       # Serializer 설정
@@ -50,16 +50,13 @@ spring:
         options:
           model: text-embedding-3-small # 1536 차원
 
-    # ========================================
-    # Milvus 설정
-    # ========================================
     vectorstore:
       milvus:
         client:
           host: ${MILVUS_HOST}
           port: 19530
         collection-name: vector_store
-        embedding-dimension: 1536 # OpenAI 모델과 일치 (Perfect!)
+        embedding-dimension: 1536
         index-type: IVF_FLAT
         metric-type: COSINE
         database-name: default
