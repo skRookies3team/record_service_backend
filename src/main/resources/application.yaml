@@ -37,20 +37,6 @@ spring:
         spring.json.add.type.headers: false
 
   # ========================================
-  # Milvus 설정  ✅ kafka 밖
-  # ========================================
-  vectorstore:
-    milvus:
-      client:
-        host: ${MILVUS_HOST}
-        port: 19530
-      collection-name: vector_store
-      embedding-dimension: 1536
-      index-type: IVF_FLAT
-      metric-type: COSINE
-      database-name: default
-
-  # ========================================
   # Spring AI 설정
   # ========================================
   ai:
@@ -63,6 +49,17 @@ spring:
         enabled: true
         options:
           model: text-embedding-3-small # 1536 차원
+
+    vectorstore:
+      milvus:
+        client:
+          host: ${MILVUS_HOST}
+          port: 19530
+        collection-name: vector_store
+        embedding-dimension: 1536
+        index-type: IVF_FLAT
+        metric-type: COSINE
+        database-name: default
 
   # ========================================
   # 기타 데이터 및 클라우드 설정
