@@ -136,6 +136,41 @@ public class RecapServiceImpl implements RecapService {
         Recap savedRecap = recapRepository.save(recap);
         log.info("[Recap] WAITING 리캡 저장 완료 - Recap ID: {}", savedRecap.getRecapId());
 
+        // 2. AI 분석을 위한 텍스트 리스트 추출
+        List<String> diaryTexts = diaries.stream()
+                .map(Diary::getContent)
+                .collect(Collectors.toList());
+
+        // 3. 연도와 월 추출
+        int year = request.getPeriodStart().getYear();
+        int month = request.getPeriodStart().getMonthValue();
+        String petName = (request.getPetName() != null) ? request.getPetName() : "우리 아이";
+
+        // 4. AI 서비스 호출
+        RecapAiResponse aiData = recapAiService.analyzeMonth(petName, year, month, diaryTexts);
+
+        // 5. Recap 엔티티 생성 및 하이라이트 추가
+        Recap recap = Recap.builder()
+                .userId(request.getUserId())
+                .petId(request.getPetId())
+                .title(aiData.getTitle())
+                .summary(aiData.getSummary())
+                .periodStart(request.getPeriodStart())
+                .periodEnd(request.getPeriodEnd())
+                .momentCount(diaries.size())
+                .status(RecapStatus.GENERATED)
+                .build();
+
+        if (aiData.getHighlights() != null) {
+            aiData.getHighlights().forEach(h -> {
+                recap.addHighlight(RecapHighlight.builder()
+                        .title(h.getTitle())
+                        .content(h.getContent())
+                        .build());
+            });
+        }
+
+        Recap savedRecap = recapRepository.save(recap);
         return savedRecap.getRecapId();
     }
 
