@@ -24,10 +24,6 @@ spring:
         format_sql: false
         default_schema: diary
 
-  vectorstore:
-    milvus:
-      initialize-schema: false
-
 # Swagger 설정 (배포 환경 비활성화 - 보안)
 springdoc:
   api-docs:
