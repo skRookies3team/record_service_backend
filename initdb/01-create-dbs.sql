@@ -10,13 +10,47 @@ CREATE DATABASE mate_db;
 -- 3. PostGIS 확장 기능 활성화 (diary_db에만 적용됨)
 CREATE EXTENSION IF NOT EXISTS postgis;
 
+-- 4. 테이블 생성 (JPA ddl-auto 설정과 상관없이 초기 데이터 삽입을 위해 미리 생성)
+CREATE TABLE IF NOT EXISTS weather_stations (
+                                                station_id INT PRIMARY KEY,
+                                                name VARCHAR(100),
+    location GEOMETRY(Point, 4326)
+    );
 
--- 4. 관측소 데이터 추가
+-- 5. 관측소 초기 데이터 삽입
+-- ON CONFLICT를 사용하여 중복 삽입 에러를 방지합니다.
+-- 전국 주요 거점 및 경기권 상세 관측소 데이터 (25개소)
 INSERT INTO weather_stations (station_id, name, location) VALUES
+                                                              -- 수도권
                                                               (108, '서울', ST_SetSRID(ST_MakePoint(126.9658, 37.5714), 4326)),
                                                               (112, '인천', ST_SetSRID(ST_MakePoint(126.7073, 37.4527), 4326)),
                                                               (119, '수원', ST_SetSRID(ST_MakePoint(127.0219, 37.2574), 4326)),
+                                                              (116, '관악산', ST_SetSRID(ST_MakePoint(126.9570, 37.4433), 4326)),
+                                                              (203, '이천', ST_SetSRID(ST_MakePoint(127.4849, 37.2640), 4326)),
+                                                              (99,  '파주', ST_SetSRID(ST_MakePoint(126.7665, 37.8867), 4326)),
+                                                              (202, '양평', ST_SetSRID(ST_MakePoint(127.4915, 37.4880), 4326)),
+                                                              (102, '백령도', ST_SetSRID(ST_MakePoint(124.6300, 37.9500), 4326)),
+                                                              -- 강원권
+                                                              (101, '춘천', ST_SetSRID(ST_MakePoint(127.7306, 37.8858), 4326)),
+                                                              (105, '강릉', ST_SetSRID(ST_MakePoint(128.8910, 37.7515), 4326)),
+                                                              (114, '원주', ST_SetSRID(ST_MakePoint(127.9466, 37.3375), 4326)),
+                                                              (121, '속초', ST_SetSRID(ST_MakePoint(128.5910, 38.2509), 4326)),
+                                                              -- 충청권
+                                                              (131, '청주', ST_SetSRID(ST_MakePoint(127.4407, 36.6392), 4326)),
+                                                              (133, '대전', ST_SetSRID(ST_MakePoint(127.3721, 36.3720), 4326)),
+                                                              (129, '서산', ST_SetSRID(ST_MakePoint(126.4477, 36.7766), 4326)),
+                                                              (177, '홍성', ST_SetSRID(ST_MakePoint(126.6870, 36.6570), 4326)),
+                                                              -- 경상권
                                                               (143, '대구', ST_SetSRID(ST_MakePoint(128.6014, 35.8779), 4326)),
                                                               (159, '부산', ST_SetSRID(ST_MakePoint(129.0324, 35.1047), 4326)),
-                                                              (184, '제주', ST_SetSRID(ST_MakePoint(126.5297, 33.5141), 4326));
--- 필요한 만큼 더 추가...
+                                                              (152, '울산', ST_SetSRID(ST_MakePoint(129.3347, 35.5825), 4326)),
+                                                              (138, '포항', ST_SetSRID(ST_MakePoint(129.3796, 36.0320), 4326)),
+                                                              (192, '진주', ST_SetSRID(ST_MakePoint(128.1201, 35.1637), 4326)),
+                                                              -- 전라권
+                                                              (146, '전주', ST_SetSRID(ST_MakePoint(127.1550, 35.8215), 4326)),
+                                                              (156, '광주', ST_SetSRID(ST_MakePoint(126.8916, 35.1729), 4326)),
+                                                              (165, '목포', ST_SetSRID(ST_MakePoint(126.3812, 34.8172), 4326)),
+                                                              (168, '여수', ST_SetSRID(ST_MakePoint(127.7300, 34.7300), 4326)),
+                                                              -- 제주권
+                                                              (184, '제주', ST_SetSRID(ST_MakePoint(126.5297, 33.5141), 4326))
+    ON CONFLICT (station_id) DO NOTHING;
