@@ -28,7 +28,7 @@ public class RecapScheduler {
      * 테스트용: 1분마다 WAITING 상태 리캡을 확인하고 생성
      * 실제 운영에서는 매일 새벽 2시로 변경
      */
-    @Scheduled(cron = "0 * * * * *")
+    @Scheduled(cron = "* * 0 * * *")
     public void processWaitingRecaps() {
         log.info("[Scheduler] WAITING 상태 리캡 처리 시작");
         List<Recap> waitingRecaps = recapRepository.findAllByStatus(RecapStatus.WAITING);

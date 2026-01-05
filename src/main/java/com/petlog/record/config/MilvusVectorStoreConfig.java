@@ -58,7 +58,7 @@ public class MilvusVectorStoreConfig {
         log.info("✅ Milvus 연결 성공");
 
         // ✅ Bean 생성 직후 컬렉션 초기화
-        //initializeMilvusCollection(client);
+        initializeMilvusCollection(client);
 
         return client;
     }
@@ -93,19 +93,25 @@ public class MilvusVectorStoreConfig {
     }
 
     /**
-     * 컬렉션 초기화 (Bean 생성 시 호출)
+     * 컬렉션 초기화 (데이터 보존을 위해 존재 여부 확인 후 로직 수행)
      */
     private void initializeMilvusCollection(MilvusServiceClient client) {
         try {
             log.info("🚀 Milvus 컬렉션 초기화 시작: {}", collectionName);
 
-            // 1. 기존 컬렉션이 있으면 삭제 (개발 환경용)
+            // 1. 기존 컬렉션이 있는지 확인
             if (hasCollection(client)) {
-                log.warn("⚠️ 기존 컬렉션 발견 - 삭제 후 재생성");
-                dropCollection(client);
+                log.info("ℹ️ 기존 컬렉션 '{}'이 존재합니다. 데이터를 유지하며 로드만 수행합니다.", collectionName);
+
+                // 검색이 가능하도록 메모리에 적재(Load)만 하고 종료
+                loadCollection(client);
+                log.info("✅ Milvus 데이터 유지 및 로드 완료");
+                return;
             }
 
-            // 2. 컬렉션 생성
+            log.info("🆕 컬렉션이 없습니다. 새로 생성을 시작합니다.");
+
+            // 2. 컬렉션 생성 (기존에 없던 경우에만 실행됨)
             createCollection(client);
 
             // 3. 인덱스 생성
@@ -114,13 +120,14 @@ public class MilvusVectorStoreConfig {
             // 4. 컬렉션 로드
             loadCollection(client);
 
-            log.info("✅ Milvus 초기화 완료");
+            log.info("✅ Milvus 신규 초기화 완료");
 
         } catch (Exception e) {
             log.error("❌ Milvus 초기화 실패: {}", e.getMessage(), e);
             throw new RuntimeException("Milvus 초기화 실패", e);
         }
     }
+
 
     /**
      * 컬렉션 존재 여부 확인
