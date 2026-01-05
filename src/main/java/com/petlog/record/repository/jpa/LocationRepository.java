@@ -15,13 +15,13 @@ public interface LocationRepository extends JpaRepository<WalkRoute, Long> {
     // [Query 수정]
     // 날짜를 TIMESTAMP로 캐스팅하여 정확한 24시간 범위 내의 데이터를 조회합니다.
     // 범위: 해당 날짜 00:00:00 <= created_at < 다음 날짜 00:00:00
+    // ✅ [수정] recorded_date 기준으로 조회
     @Query(value = """
         SELECT w.start_point 
         FROM walk_routes w 
         WHERE w.user_id = :userId 
-          AND w.created_at >= CAST(:date AS timestamp)
-          AND w.created_at < CAST(:date AS timestamp) + INTERVAL '1 day'
-        ORDER BY w.created_at ASC 
+          AND w.recorded_date = :date
+        ORDER BY w.created_at DESC 
         LIMIT 1
     """, nativeQuery = true)
     Point findFirstLocationByUserIdAndDate(@Param("userId") Long userId, @Param("date") LocalDate date);

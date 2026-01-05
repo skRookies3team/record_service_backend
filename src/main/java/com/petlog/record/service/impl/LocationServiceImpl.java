@@ -7,10 +7,7 @@ import com.petlog.record.repository.jpa.LocationRepository;
 import com.petlog.record.service.LocationService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.locationtech.jts.geom.Coordinate;
-import org.locationtech.jts.geom.GeometryFactory;
-import org.locationtech.jts.geom.Point;
-import org.locationtech.jts.geom.PrecisionModel;
+import org.locationtech.jts.geom.*;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -55,5 +52,21 @@ public class LocationServiceImpl implements LocationService {
         // 3. 저장
         locationRepository.save(walkRoute);
         log.info("DB 저장 완료 (WalkRoute ID: {})", walkRoute.getId());
+    }
+
+    // ✅ [NEW] 일기 저장용 추가
+    @Override
+    @Transactional
+    public void saveLocation(Long userId, LocalDate date, Double latitude, Double longitude, String locationName) {
+        Point point = geometryFactory.createPoint(new Coordinate(longitude, latitude));
+
+        WalkRoute walkRoute = WalkRoute.builder()
+                .userId(userId)
+                .startPoint(point)
+                .recordedDate(date) // 일기 날짜 저장
+                .build();
+
+        locationRepository.save(walkRoute);
+        log.info("과거 일기 위치 저장 완료: userId={}, date={}, lat={}, lng={}", userId, date, latitude, longitude);
     }
 }
