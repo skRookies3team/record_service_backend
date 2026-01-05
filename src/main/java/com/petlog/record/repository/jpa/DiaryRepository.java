@@ -21,9 +21,14 @@ public interface DiaryRepository extends JpaRepository<Diary, Long> {
     List<Diary> findAllByPetIdAndDateBetween(Long petId, LocalDate start, LocalDate end);
 
     /**
-     * 특정 기간 동안 일기를 작성한 적이 있는 펫의 ID와 사용자 ID의 고유 쌍을 조회합니다.
-     * MSA 환경에서 외부 서비스의 Pet 테이블을 참조하지 않고 일기 기록만으로 대상자를 선정합니다.
+     * 특정 사용자가 특정 펫의 일기를 작성한 적이 있는지 확인합니다.
+     * 리캡 예약 시 소유권 및 기록 여부를 검증하기 위해 사용됩니다.
      */
-    @Query("SELECT DISTINCT d.petId, d.userId FROM Diary d WHERE d.date BETWEEN :start AND :end")
-    List<Object[]> findDistinctPetAndUserByDateBetween(@Param("start") LocalDate start, @Param("end") LocalDate end);
+    boolean existsByPetIdAndUserId(Long petId, Long userId);
+//    /**
+//     * 특정 기간 동안 일기를 작성한 적이 있는 펫의 ID와 사용자 ID의 고유 쌍을 조회합니다.
+//     * MSA 환경에서 외부 서비스의 Pet 테이블을 참조하지 않고 일기 기록만으로 대상자를 선정합니다.
+//     */
+//    @Query("SELECT DISTINCT d.petId, d.userId FROM Diary d WHERE d.date BETWEEN :start AND :end")
+//    List<Object[]> findDistinctPetAndUserByDateBetween(@Param("start") LocalDate start, @Param("end") LocalDate end);
 }
