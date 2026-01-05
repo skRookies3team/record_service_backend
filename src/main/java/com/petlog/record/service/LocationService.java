@@ -19,4 +19,7 @@ public interface LocationService {
      * 이 메서드가 인터페이스에 있어야 Controller에서 호출할 수 있습니다.
      */
     void saveLocation(LocationRequest request);
+
+    // ✅ [NEW] 일기 저장용 오버로딩 메서드
+    void saveLocation(Long userId, LocalDate date, Double latitude, Double longitude, String locationName);
 }

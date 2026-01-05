@@ -5,6 +5,7 @@ import lombok.*;
 import org.hibernate.annotations.CreationTimestamp;
 import org.locationtech.jts.geom.Point;
 
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 
 /**
@@ -36,9 +37,9 @@ public class WalkRoute {
     @Column(name = "end_point", columnDefinition = "geometry(Point, 4326)")
     private Point endPoint;
 
-    // 전체 경로 (LineString 등으로 확장 가능)
-    // @Column(columnDefinition = "geometry(LineString, 4326)")
-    // private LineString path;
+    // ✅ [NEW] 실제 기록된 날짜 (일기 작성 날짜)
+    @Column(name = "recorded_date")
+    private LocalDate recordedDate;
 
     @CreationTimestamp
     @Column(name = "created_at", updatable = false)
