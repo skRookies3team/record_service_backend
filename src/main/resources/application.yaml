@@ -111,9 +111,7 @@ external:
   image-service:
     url: ${IMAGE_SERVICE_URL}
   notification-service:
-    url: ${NOTIFICATION_SERVICE_URL:http://localhost:8083}
-  storage-service:
-    url: ${STORAGE_SERVICE_URL:http://localhost:8084}
+    url: ${NOTIFICATION_SERVICE_URL}
   weather:
     api-key: ${WEATHER_API_KEY}
     asos-api-key: ${ASOS_API_KEY}
