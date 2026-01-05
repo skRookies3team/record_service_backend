@@ -2,19 +2,22 @@ package com.petlog.record.service;
 
 import com.petlog.record.dto.request.RecapRequest;
 import com.petlog.record.dto.response.RecapResponse;
-
 import java.util.List;
 
 public interface RecapService {
-    // 리캡 생성
-    Long createRecap(RecapRequest.Create request);
+    /**
+     * AI를 활용하여 월간 리캡을 생성합니다.
+     */
+    Long createAiRecap(RecapRequest.Generate request);
 
-    // 상세 조회
-    RecapResponse.Detail getRecap(Long recapId);
+    Long createWaitingRecap(RecapRequest.Create request);
 
-    // 사용자별 리캡 전체 목록 조회
+    /**
+     * 특정 리캡의 상세 정보를 조회합니다. (보안 검증 포함)
+     */
+    RecapResponse.Detail getRecap(Long recapId, Long userId);
+
     List<RecapResponse.Simple> getAllRecaps(Long userId);
 
-    // [추가] 펫별 리캡 목록 조회
     List<RecapResponse.Simple> getRecapsByPet(Long petId);
 }

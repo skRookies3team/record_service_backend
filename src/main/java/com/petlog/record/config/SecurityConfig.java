@@ -27,6 +27,13 @@ public class SecurityConfig {
 
                 // 3. 경로별 인가 설정
                 .authorizeHttpRequests(auth -> auth
+
+                        // Kubernetes 헬스체크 허용
+                        .requestMatchers(
+                                "/actuator/health",
+                                "/actuator/health/**"
+                        ).permitAll()
+
                         // Swagger 관련 경로 모두 허용 (로그인 없이 접속 가능)
                         .requestMatchers(
                                 "/swagger",

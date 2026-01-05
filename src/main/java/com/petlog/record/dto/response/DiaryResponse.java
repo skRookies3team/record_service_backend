@@ -9,6 +9,7 @@ import lombok.*;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 
 @Data
@@ -94,7 +95,7 @@ public class DiaryResponse {
                 .createdAt(diary.getCreatedAt())
                 .updatedAt(diary.getUpdatedAt())
                 .images(diary.getImages().stream()
-                        .map(Image::fromEntity)
+                        .map(img -> Image.fromEntity(img, null)) // 메타데이터 없이 호출
                         .collect(Collectors.toList()))
                 .build();
     }
@@ -121,12 +122,17 @@ public class DiaryResponse {
         @Schema(description = "대표 이미지 여부", example = "true")
         private Boolean mainImage;
 
-        public static Image fromEntity(DiaryImage image) {
+        // ✅ [추가] 각 이미지별 몽고DB 메타데이터
+        @Schema(description = "이미지 상세 메타데이터(몽고DB)")
+        private Map<String, Object> metadata;
+
+        public static Image fromEntity(DiaryImage image, Map<String, Object> mongoMetadata) {
             return Image.builder()
                     .imageId(image.getImageId())
                     .imageUrl(image.getImageUrl())
                     .imgOrder(image.getImgOrder())
                     .mainImage(image.getMainImage())
+                    .metadata(mongoMetadata) // 여기서 합쳐짐
                     .build();
         }
     }

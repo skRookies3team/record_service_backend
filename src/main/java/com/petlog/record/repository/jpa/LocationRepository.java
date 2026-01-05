@@ -1,4 +1,4 @@
-package com.petlog.record.repository;
+package com.petlog.record.repository.jpa;
 
 import com.petlog.record.entity.WalkRoute;
 import org.locationtech.jts.geom.Point;

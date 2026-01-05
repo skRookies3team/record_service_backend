@@ -2,15 +2,13 @@ package com.petlog.record.service.impl;
 
 import com.petlog.record.dto.response.DiaryResponse;
 import com.petlog.record.entity.Diary;
-import com.petlog.record.repository.DiaryQueryRepository;
+import com.petlog.record.repository.jpa.DiaryQueryRepository;
 import com.petlog.record.service.DiaryQueryService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
-import java.time.LocalDateTime;
-import java.time.LocalTime;
 import java.util.List;
 import java.util.stream.Collectors;
 

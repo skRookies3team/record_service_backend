@@ -3,7 +3,7 @@ package com.petlog.record.service.impl;
 import com.petlog.record.dto.request.LocationRequest;
 import com.petlog.record.dto.response.LocationResponse;
 import com.petlog.record.entity.WalkRoute;
-import com.petlog.record.repository.LocationRepository;
+import com.petlog.record.repository.jpa.LocationRepository;
 import com.petlog.record.service.LocationService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;

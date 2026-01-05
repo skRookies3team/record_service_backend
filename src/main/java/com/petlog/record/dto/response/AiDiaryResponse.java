@@ -4,6 +4,7 @@ import lombok.*;
 
 import java.time.LocalDate;
 import java.util.List;
+import java.util.Map;
 
 @Getter
 @Setter
@@ -36,6 +37,10 @@ public class AiDiaryResponse {
     @JsonProperty("date")
     private LocalDate date;
     // NOTE: diaryId는 저장되지 않았으므로 포함하지 않습니다.
+
+    // ✅ [추가] AI가 분석한 사진별 메타데이터 목록 (순서대로 매핑)
+    @JsonProperty("imagesMetadata")
+    private List<Map<String, Object>> imagesMetadata;
 
     // --- 추가된 필드 ---
     @JsonProperty("imageUrls")

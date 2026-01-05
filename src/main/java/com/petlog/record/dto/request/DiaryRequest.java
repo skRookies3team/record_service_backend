@@ -11,6 +11,7 @@ import lombok.*;
 
 import java.time.LocalDate;
 import java.util.List;
+import java.util.Map;
 
 public class DiaryRequest {
 
@@ -79,7 +80,6 @@ public class DiaryRequest {
         @Schema(description = "미리보기 단계에서 발급받은 보관함(Archive) ID 목록")
         @JsonProperty("archiveIds")
         private List<Long> archiveIds;
-
 
         // DTO -> Diary Entity 변환
         public Diary toEntity() {
@@ -155,8 +155,13 @@ public class DiaryRequest {
         @Builder.Default
         private ImageSource source = ImageSource.GALLERY;
 
-        // [New] ID if source is ARCHIVE
+        // ✅ archiveId 설명 추가
+        @Schema(description = "이미지 출처가 ARCHIVE일 경우의 보관함 ID (source가 ARCHIVE일 때 필수)", example = "10")
         private Long archiveId;
+
+        // ✅ [추가] MongoDB에 저장될 비정형 데이터 (EXIF, 기기정보, AI 태그 등)
+        @Schema(description = "사진 메타데이터 (비정형)", example = "{\"camera\": \"iPhone 15\", \"location\": \"Seoul\"}")
+        private Map<String, Object> metadata;
 
         public DiaryImage toEntity(Long userId) {
             return DiaryImage.builder()

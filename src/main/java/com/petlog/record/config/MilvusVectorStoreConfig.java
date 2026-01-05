@@ -58,7 +58,7 @@ public class MilvusVectorStoreConfig {
         log.info("✅ Milvus 연결 성공");
 
         // ✅ Bean 생성 직후 컬렉션 초기화
-        initializeMilvusCollection(client);
+        //initializeMilvusCollection(client);
 
         return client;
     }
