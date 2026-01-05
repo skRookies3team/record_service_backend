@@ -38,9 +38,9 @@ public class RecapServiceImpl implements RecapService {
     @Override
     @Transactional
     public Long createAiRecap(RecapRequest.Generate request) {
-        log.info("[Recap] AI 리캡 생성 프로세스 시작 - 펫 ID: {}, 기간: {} ~ {}",
-                request.getPetId(), request.getPeriodStart(), request.getPeriodEnd());
+        log.info("[Recap] AI 리캡 생성 프로세스 시작 - User: {}, Pet: {}", request.getUserId(), request.getPetId());
 
+        // 1. 해당 펫의 일기 조회 (위에서 검증했으므로 안전하게 해당 펫의 데이터만 가져옴)
         List<Diary> diaries = diaryRepository.findAllByPetIdAndDateBetween(
                 request.getPetId(),
                 request.getPeriodStart(),
@@ -51,6 +51,9 @@ public class RecapServiceImpl implements RecapService {
             log.warn("[Recap] 해당 기간에 작성된 일기가 없어 생성을 중단합니다. (Pet ID: {})", request.getPetId());
             throw new RuntimeException("해당 기간에 작성된 일기가 없어 리캡을 생성할 수 없습니다.");
         }
+
+        // 2. [보안 강화] 조회된 일기들이 요청한 사용자의 것인지 검증 (Diary 데이터를 활용한 소유권 확인)
+        verifyDiaryOwnership(diaries, request.getUserId());
 
         // 일기별 대표 이미지(mainImage == true) 추출 및 랜덤 8장 선정
         List<String> representativeImages = diaries.stream()
@@ -76,8 +79,10 @@ public class RecapServiceImpl implements RecapService {
         String petName = (request.getPetName() != null && !request.getPetName().isBlank())
                 ? request.getPetName() : "우리 아이";
 
+        // AI 분석 수행
         RecapAiResponse aiData = recapAiService.analyzeMonth(petName, year, month, diaryTexts);
 
+        // 4. 리캡 저장 (userId 포함)
         Recap recap = Recap.builder()
                 .userId(request.getUserId())
                 .petId(request.getPetId())
@@ -112,8 +117,14 @@ public class RecapServiceImpl implements RecapService {
     @Override
     @Transactional
     public Long createWaitingRecap(RecapRequest.Create request) {
-        log.info("[Recap] WAITING 상태 리캡 생성 - 펫 ID: {}, 기간: {} ~ {}",
-                request.getPetId(), request.getPeriodStart(), request.getPeriodEnd());
+        log.info("[Recap] WAITING 리캡 예약 시작 - User: {}, Pet: {}", request.getUserId(), request.getPetId());
+
+        // 예약 시점에는 분석할 일기가 없을 수 있으므로,
+        // 다이어리 테이블에서 해당 유저가 해당 펫의 일기를 한 번이라도 작성했는지 여부로 최소한의 검증을 수행할 수 있습니다.
+        boolean hasHistory = diaryRepository.existsByPetIdAndUserId(request.getPetId(), request.getUserId());
+        if (!hasHistory) {
+            throw new AccessDeniedException("해당 반려동물에 대한 기록 권한이 없거나 작성된 일기가 없습니다.");
+        }
 
         // WAITING 상태로 리캡 생성 (AI 분석 없이)
         Recap recap = Recap.builder()
@@ -144,6 +155,7 @@ public class RecapServiceImpl implements RecapService {
     public RecapResponse.Detail getRecap(Long recapId, Long userId) {
         Recap recap = recapRepository.findById(recapId)
                 .orElseThrow(() -> new EntityNotFoundException(ErrorCode.RECAP_NOT_FOUND));
+
         // [보안 로직] 리캡의 소유자가 현재 요청한 유저와 일치하는지 검증
         if (!recap.getUserId().equals(userId)) {
             log.warn("[Security] 권한 없는 리캡 접근 시도 - User: {}, RecapID: {}", userId, recapId);
@@ -168,5 +180,19 @@ public class RecapServiceImpl implements RecapService {
         return recapRepository.findAllByPetIdOrderByCreatedAtDesc(petId).stream()
                 .map(RecapResponse.Simple::fromEntity)
                 .collect(Collectors.toList());
+    }
+
+    /**
+     * [Helper] 일기 데이터를 활용한 소유권 검증 로직
+     * 조회된 일기 목록 중 요청한 사용자의 ID와 일치하지 않는 데이터가 있는지 확인합니다.
+     */
+    private void verifyDiaryOwnership(List<Diary> diaries, Long userId) {
+        boolean isNotOwner = diaries.stream()
+                .anyMatch(diary -> !diary.getUserId().equals(userId));
+
+        if (isNotOwner) {
+            log.error("[Security] 일기 소유권 불일치 감지 - 요청 유저: {}", userId);
+            throw new AccessDeniedException("본인의 반려동물 기록만 리캡으로 생성할 수 있습니다.");
+        }
     }
 }

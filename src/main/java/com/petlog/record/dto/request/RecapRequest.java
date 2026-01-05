@@ -43,6 +43,27 @@ public class RecapRequest {
         private String petName;
     }
 
+    // [추가됨] 모든 펫 리캡 일괄 생성 요청 전용 DTO
+    @Data
+    @Builder
+    @NoArgsConstructor
+    @AllArgsConstructor
+    @Schema(name = "RecapGenerateAllRequest", description = "모든 펫 리캡 일괄 생성 요청 DTO")
+    public static class GenerateAll {
+
+        @NotNull(message = "사용자 ID는 필수입니다.")
+        @Schema(description = "사용자 ID", example = "1")
+        private Long userId;
+
+        @NotNull(message = "집계 기간 시작일은 필수입니다.")
+        @Schema(description = "집계 기간 시작일", example = "2024-03-01")
+        private LocalDate periodStart;
+
+        @NotNull(message = "집계 기간 종료일은 필수입니다.")
+        @Schema(description = "집계 기간 종료일", example = "2024-03-31")
+        private LocalDate periodEnd;
+    }
+
     // [Request] 리캡 생성 및 저장용 (기존 필드 및 로직 유지)
     @Data
     @Builder
