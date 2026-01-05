@@ -1,6 +1,7 @@
 package com.petlog.record.service.impl;
 
 import com.petlog.record.client.NotificationClient;
+import com.petlog.record.client.UserClient;
 import com.petlog.record.dto.client.NotificationRequest;
 import com.petlog.record.dto.request.RecapRequest;
 import com.petlog.record.dto.response.RecapAiResponse;
@@ -22,9 +23,7 @@ import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.util.Collections;
-import java.util.List;
-import java.util.Objects;
+import java.util.*;
 import java.util.stream.Collectors;
 
 @Slf4j
@@ -37,6 +36,7 @@ public class RecapServiceImpl implements RecapService {
     private final DiaryRepository diaryRepository;
     private final RecapAiService recapAiService;
     private final NotificationClient notificationClient; // 리캡 알림 연동
+    private final UserClient userClient;  // 리캡 코인 연동
 
     @Override
     @Transactional
@@ -110,6 +110,18 @@ public class RecapServiceImpl implements RecapService {
         Recap savedRecap = recapRepository.save(recap);
         log.info("[Recap] AI 리캡 저장 완료 - Recap ID: {}", savedRecap.getRecapId());
 
+        // ✅ [NEW] 코인 적립 (30 코인)
+        try {
+            Map<String, Object> coinRequest = new HashMap<>();
+            coinRequest.put("amount", 30L);
+            coinRequest.put("type", "WRITERECAP");
+
+            userClient.earnCoin(request.getUserId(), coinRequest);
+            log.info("[Coin] 리캡 생성 코인 적립 완료: userId={}, amount=30", request.getUserId());
+        } catch (Exception e) {
+            log.error("[Coin] 코인 적립 실패 (리캡은 정상 생성됨): {}", e.getMessage());
+        }
+
         // ✅ [추가] 리캡 생성 알림 전송
         try {
             NotificationRequest notificationRequest = NotificationRequest.builder()
@@ -117,6 +129,7 @@ public class RecapServiceImpl implements RecapService {
                     .senderId(request.getUserId())
                     .receiverId(request.getUserId())
                     .targetId(savedRecap.getRecapId())
+                    .coin(30L)
                     .build();
 
             notificationClient.createNotification(notificationRequest);
