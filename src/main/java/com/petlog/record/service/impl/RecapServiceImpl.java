@@ -1,5 +1,7 @@
 package com.petlog.record.service.impl;
 
+import com.petlog.record.client.NotificationClient;
+import com.petlog.record.dto.client.NotificationRequest;
 import com.petlog.record.dto.request.RecapRequest;
 import com.petlog.record.dto.response.RecapAiResponse;
 import com.petlog.record.dto.response.RecapResponse;
@@ -34,6 +36,7 @@ public class RecapServiceImpl implements RecapService {
     private final RecapRepository recapRepository;
     private final DiaryRepository diaryRepository;
     private final RecapAiService recapAiService;
+    private final NotificationClient notificationClient; // 리캡 알림 연동
 
     @Override
     @Transactional
@@ -106,6 +109,22 @@ public class RecapServiceImpl implements RecapService {
 
         Recap savedRecap = recapRepository.save(recap);
         log.info("[Recap] AI 리캡 저장 완료 - Recap ID: {}", savedRecap.getRecapId());
+
+        // ✅ [추가] 리캡 생성 알림 전송
+        try {
+            NotificationRequest notificationRequest = NotificationRequest.builder()
+                    .type("RECAP")
+                    .senderId(request.getUserId())
+                    .receiverId(request.getUserId())
+                    .targetId(savedRecap.getRecapId())
+                    .build();
+
+            notificationClient.createNotification(notificationRequest);
+            log.info("[Notification] 리캡 생성 알림 전송 완료: userId={}, recapId={}",
+                    request.getUserId(), savedRecap.getRecapId());
+        } catch (Exception e) {
+            log.error("[Notification] 알림 전송 실패 (리캡은 정상 생성됨): {}", e.getMessage());
+        }
 
         return savedRecap.getRecapId();
     }

@@ -1,5 +1,6 @@
 package com.petlog.record.client;
 
+import com.petlog.record.dto.client.NotificationRequest;
 import org.springframework.cloud.openfeign.FeignClient;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -8,8 +9,6 @@ import org.springframework.web.bind.annotation.RequestBody;
 @FeignClient(name = "notification-service", url = "${external.notification-service.url}")
 public interface NotificationClient {
 
-    @PostMapping("/api/notifications/send")
-    void sendNotification(@RequestBody NotificationRequest request);
-
-    record NotificationRequest(Long userId, String title, String message, String type) {}
+    @PostMapping("/api/notifications/create")
+    void createNotification(@RequestBody NotificationRequest request);
 }

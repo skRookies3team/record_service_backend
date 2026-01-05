@@ -2,6 +2,7 @@ package com.petlog.record.service.impl;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.petlog.record.service.ExternalApiService;
 import com.petlog.record.service.WeatherService;
 import com.petlog.record.util.LatXLngY;
 import lombok.RequiredArgsConstructor;
@@ -14,14 +15,12 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
 
-/**
- * 외부 API 전담 서비스
- * 날씨 조회 및 위치 주소 변환 기능 담당
- */
+import java.time.LocalDate;
+
 @Slf4j
 @Service
 @RequiredArgsConstructor
-public class ExternalApiService {
+public class ExternalApiServiceImpl implements ExternalApiService {
 
     private final WeatherService weatherService;
     private final RestTemplate restTemplate;
@@ -29,16 +28,41 @@ public class ExternalApiService {
     @Value("${kakao.rest-api-key}")
     private String kakaoRestApiKey;
 
+    @Override
+    public String getWeatherInfo(LocalDate date, Double lat, Double lng) {
+        if (lat == null || lng == null) return null;
+
+        LocalDate today = LocalDate.now();
+        // 과거 날짜면 ASOS(관측), 오늘이면 단기예보를 호출합니다.
+        if (date.isBefore(today)) {
+            return getPastWeather(date, lat, lng);
+        } else {
+            return getCurrentWeather(lat, lng);
+        }
+    }
+
+    @Override
     public String getCurrentWeather(Double lat, Double lng) {
         try {
             int[] grid = LatXLngY.convert(lat, lng);
             return weatherService.getCurrentWeather(grid[0], grid[1]);
         } catch (Exception e) {
-            log.warn("날씨 조회 실패: {}", e.getMessage());
+            log.warn("실시간 날씨 조회 실패: {}", e.getMessage());
             return null;
         }
     }
 
+    @Override
+    public String getPastWeather(LocalDate date, Double lat, Double lng) {
+        try {
+            return weatherService.getPastWeather(date, lat, lng);
+        } catch (Exception e) {
+            log.warn("과거 날씨 조회 실패: {}", e.getMessage());
+            return null;
+        }
+    }
+
+    @Override
     public String getAddressFromCoords(Double lat, Double lng) {
         try {
             if (kakaoRestApiKey == null || kakaoRestApiKey.isEmpty()) return null;

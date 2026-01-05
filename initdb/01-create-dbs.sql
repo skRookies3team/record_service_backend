@@ -17,7 +17,18 @@ CREATE TABLE IF NOT EXISTS weather_stations (
     location GEOMETRY(Point, 4326)
     );
 
--- 5. 관측소 초기 데이터 삽입
+-- 5. 사용자 위치 경로 저장 테이블 추가 (전날 위치 조회를 위해 필수)
+CREATE TABLE IF NOT EXISTS walk_routes (
+                                           id SERIAL PRIMARY KEY,
+                                           user_id BIGINT NOT NULL,
+                                           start_point GEOMETRY(Point, 4326) NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    -- 날짜별 조회를 최적화하기 위한 인덱스
+    date_only DATE GENERATED ALWAYS AS (created_at::DATE) STORED
+    );
+CREATE INDEX IF NOT EXISTS idx_walk_routes_user_date ON walk_routes(user_id, date_only);
+
+-- 6. 관측소 초기 데이터 삽입
 -- ON CONFLICT를 사용하여 중복 삽입 에러를 방지합니다.
 -- 전국 주요 거점 및 경기권 상세 관측소 데이터 (25개소)
 INSERT INTO weather_stations (station_id, name, location) VALUES
