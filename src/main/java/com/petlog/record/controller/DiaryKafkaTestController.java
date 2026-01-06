@@ -45,6 +45,10 @@ public class DiaryKafkaTestController {
         return ResponseEntity.ok("Event published to Kafka!");
     }
 
+    /**
+     * [테스트 이벤트 요청 DTO]
+     * Kafka 테스트 메시지 전송에 필요한 필드를 포함하는 Record
+     */
     public record TestEventRequest(
             Long diaryId,
             Long userId,

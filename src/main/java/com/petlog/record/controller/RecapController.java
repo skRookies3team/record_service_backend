@@ -2,25 +2,25 @@ package com.petlog.record.controller;
 
 import com.petlog.record.dto.request.RecapRequest;
 import com.petlog.record.dto.response.RecapResponse;
-import com.petlog.record.entity.Recap;
-import com.petlog.record.entity.RecapStatus;
 import com.petlog.record.repository.jpa.DiaryRepository;
 import com.petlog.record.service.RecapService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
-import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
-import java.net.URI;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+/**
+ * [AI 월간 리캡 컨트롤러]
+ * 반려동물의 일기 데이터를 분석하여 월별 요약 콘텐츠(Recap)를 자동/수동으로 생성하고 조회하는 API
+ */
 @Tag(name = "Recap API", description = "AI 월간 리캡 자동 생성 및 조회 API")
 @RestController
 @RequestMapping("/api/recaps")
@@ -31,7 +31,10 @@ public class RecapController {
     private final DiaryRepository diaryRepository;
 
     /**
-     * [개선됨] 내 모든 펫에 대해 다음 달 리캡을 한 번에 예약합니다.
+     * [모든 펫 AI 리캡 자동 예약 API]
+     * 사용자가 보유한 모든 반려동물(일기 기록이 있는 대상)에 대해 차월 리캡을 'WAITING' 상태로 미리 예약
+     * 시스템 스케줄러가 차월 초에 해당 데이터를 바탕으로 요약을 수행할 수 있도록 기초 데이터를 생성함
+     * @param userId 사용자 식별자
      */
     @Operation(summary = "모든 펫 AI 리캡 자동 예약", description = "사용자가 키우는 모든 펫에 대해 다음 달 리캡을 WAITING 상태로 예약합니다.")
     @PostMapping("/schedule/auto")
@@ -77,42 +80,11 @@ public class RecapController {
         return ResponseEntity.ok(response);
     }
 
-//    /**
-//     * [자동 예약 기능] - 다음 달 리캡을 WAITING 상태로 예약
-//     */
-//    @Operation(summary = "AI 리캡 자동 예약", description = "다음 달 리캡을 WAITING 상태로 예약합니다. 스케줄러가 자동으로 생성합니다.")
-//    @PostMapping("/schedule/auto")
-//    public ResponseEntity<Map<String, Object>> scheduleAutoRecap(
-//            @RequestParam Long petId,
-//            @RequestParam Long userId,
-//            @RequestParam(required = false) String petName) {
-//        // 다음 달의 시작일과 종료일 계산
-//        LocalDate now = LocalDate.now();
-//        LocalDate nextMonthStart = now.plusMonths(1).withDayOfMonth(1);
-//        LocalDate nextMonthEnd = nextMonthStart.withDayOfMonth(nextMonthStart.lengthOfMonth());
-//        // WAITING 상태의 리캡 생성 요청 DTO
-//        RecapRequest.Create request = RecapRequest.Create.builder()
-//                .petId(petId)
-//                .userId(userId)
-//                .title("리캡 생성 예정")
-//                .summary("다음 달 리캡이 자동으로 생성될 예정입니다.")
-//                .periodStart(nextMonthStart)
-//                .periodEnd(nextMonthEnd)
-//                .imageUrls(List.of())
-//                .momentCount(0)
-//                .status("WAITING") // WAITING 상태
-//                .build();
-//        Long recapId = recapService.createWaitingRecap(request);
-//        Map<String, Object> response = new HashMap<>();
-//        response.put("recapId", recapId);
-//        response.put("message", "다음 달(" + nextMonthStart.getMonthValue() + "월)의 리캡이 예약되었습니다.");
-//        response.put("scheduledDate", nextMonthStart);
-//        return ResponseEntity.created(URI.create("/api/recaps/" + recapId)).body(response);
-//    }
-
     /**
-     * [수정됨] 모든 펫 리캡 수동 일괄 생성
-     * @RequestBody를 사용하도록 수정하여 JSON 바디 요청을 처리할 수 있게 변경했습니다.
+     * [모든 펫 AI 리캡 수동 일괄 생성 API]
+     * 사용자가 지정한 특정 기간의 일기들을 분석하여 즉시 AI 리캡 리포트를 생성
+     * 일기 기록이 없는 펫은 생성을 건너뛰며, 성공한 펫들에 대해서만 결과 ID를 반환
+     * @param request 유저 ID 및 분석 대상 기간(시작일, 종료일)
      */
     @Operation(summary = "모든 펫 AI 리캡 수동 생성 (기간 지정)", description = "지정한 기간에 대해 키우는 모든 펫의 리캡을 즉시 생성합니다.")
     @PostMapping("/generate/manual")
@@ -155,28 +127,12 @@ public class RecapController {
         return ResponseEntity.ok(response);
     }
 
-
-//
-//    /**
-//     * [수동 생성 기능] - '기간 직접 선택' 버튼용
-//     * 사용자가 달력에서 선택한 periodStart, periodEnd 값을 받아 리캡을 생성합니다.
-//     */
-//    @Operation(summary = "AI 리캡 수동 생성 (기간 지정)", description = "사용자가 직접 지정한 특정 기간의 일기를 분석하여 리캡을 생성합니다.")
-//    @PostMapping("/generate/manual")
-//    public ResponseEntity<Map<String, Object>> generateManualCustomRecap(@Valid @RequestBody RecapRequest.Generate request) {
-//        Long recapId = recapService.createAiRecap(request);
-//
-//        Map<String, Object> response = new HashMap<>();
-//        response.put("recapId", recapId);
-//        response.put("message", "선택하신 기간(" + request.getPeriodStart() + " ~ " + request.getPeriodEnd() + ")의 추억을 분석하여 리캡을 생성했습니다.");
-//
-//        return ResponseEntity.created(URI.create("/api/recaps/" + recapId)).body(response);
-//    }
-
     /**
-     * [보안 강화] 리캡 상세 조회
-     * @param recapId 조회할 리캡의 ID
-     * @param userId 현재 로그인한 사용자의 ID (보안 검증용)
+     * [리캡 상세 조회 API]
+     * 생성된 리캡의 상세 내용(요약 텍스트, 주요 키워드, 선택된 이미지 등)을 조회
+     * 보안을 위해 요청한 유저가 해당 리캡의 소유자인지 검증하는 로직을 포함
+     * @param recapId 리캡 식별자
+     * @param userId 검증을 위한 사용자 식별자
      */
     @Operation(summary = "리캡 상세 조회", description = "생성된 리캡의 상세 내용을 조회합니다. (본인 것만 조회 가능)")
     @GetMapping("/{recapId}")
@@ -187,12 +143,20 @@ public class RecapController {
         return ResponseEntity.ok(recapService.getRecap(recapId, userId));
     }
 
+    /**
+     * [사용자별 리캡 목록 조회 API]
+     * 특정 사용자가 보유한 모든 반려동물의 리캡 목록을 최신순으로 조회
+     */
     @Operation(summary = "사용자별 리캡 목록 조회", description = "특정 사용자가 보유한 모든 리캡 목록을 조회합니다.")
     @GetMapping("/user/{userId}")
     public ResponseEntity<List<RecapResponse.Simple>> getAllRecaps(@PathVariable Long userId) {
         return ResponseEntity.ok(recapService.getAllRecaps(userId));
     }
 
+    /**
+     * [펫별 리캡 목록 조회 API]
+     * 특정 반려동물에게 생성된 리캡 히스토리(연도별/월별 요약 목록)를 조회
+     */
     @Operation(summary = "펫별 리캡 목록 조회", description = "특정 펫의 리캡 역사(History)를 조회합니다.")
     @GetMapping("/pet/{petId}")
     public ResponseEntity<List<RecapResponse.Simple>> getRecapsByPet(@PathVariable Long petId) {
