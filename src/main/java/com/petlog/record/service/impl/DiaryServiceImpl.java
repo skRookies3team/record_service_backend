@@ -34,8 +34,9 @@ import java.util.Map;
 import java.util.stream.Collectors;
 
 /**
- * 일기 서비스 구현체 (Orchestrator)
- * 이제 구체 클래스가 아닌 인터페이스(DiaryAiService 등)에 의존합니다.
+ * [다이어리 서비스 오케스트레이터 구현체]
+ * 일기 생성, 조회, 수정, 삭제의 전체 라이프사이클을 관리하며
+ * AI 분석, 위치 정보 복원, 멀티 DB 연동, 비동기 이벤트 발행 등 복잡한 비즈니스 프로세스를 조율함
  */
 @Slf4j
 @Service
@@ -58,6 +59,14 @@ public class DiaryServiceImpl implements DiaryService {
     private final DiaryMediaService diaryMediaService;
     private final LocationService locationService; // ✅ 위치 조회 서비스 주입 확인
 
+    /**
+     * [AI 일기 미리보기 생성]
+     * 사용자가 선택한 사진과 정보를 바탕으로 AI가 작성한 초안과 분석 데이터를 제공
+     * 1. 사용자 및 펫 유효성 검증 (Feign Client)
+     * 2. [위치 복원] 과거 날짜 기록 시 DB 내 수집된 위치 정보(PostGIS)를 우선적으로 복원
+     * 3. 이미지 업로드 및 외부 서비스 보관함 연동
+     * 4. AI 분석 수행 (LLM) 및 날씨/주소 정보 결합
+     */
     @Override
     @Transactional
     public AiDiaryResponse previewAiDiary(Long userId, Long petId, List<DiaryRequest.Image> images, List<MultipartFile> imageFiles, Double latitude, Double longitude, String date) {
@@ -156,6 +165,14 @@ public class DiaryServiceImpl implements DiaryService {
         return aiResponse;
     }
 
+    /**
+     * [다이어리 최종 저장]
+     * AI 프리뷰 데이터를 바탕으로 사용자가 수정한 내용을 데이터베이스에 영구 저장
+     * 1. RDB(PostgreSQL)에 일기 및 이미지 기본 정보 저장
+     * 2. NoSQL(MongoDB)에 이미지별 비정형 메타데이터 저장
+     * 3. [위치 저장] 과거 날짜에 위치 좌표가 포함된 경우 이동 경로 데이터로 역추적 저장
+     * 4. 트랜잭션 성공 시 비동기 이벤트 발행 (Kafka, VectorDB)
+     */
     @Override
     @Transactional
     public Long saveDiary(DiaryRequest.Create request) {
@@ -258,6 +275,10 @@ public class DiaryServiceImpl implements DiaryService {
         return savedDiary.getDiaryId();
     }
 
+    /**
+     * [다이어리 상세 조회]
+     * RDB의 기본 정보와 MongoDB의 비정형 메타데이터, 그리고 스타일 설정을 결합하여 반환
+     */
     @Override
     public DiaryResponse getDiary(Long diaryId) {
         Diary diary = diaryRepository.findById(diaryId)
@@ -281,6 +302,12 @@ public class DiaryServiceImpl implements DiaryService {
         return response;
     }
 
+    /**
+     * [다이어리 정보 수정]
+     * 기존에 저장된 일기의 제목, 본문, 날짜 및 공개 범위 등을 변경
+     * 엔티티의 update 메서드를 호출하여 Dirty Checking(변경 감지) 기능을 통해 DB에 반영
+     * 수정 완료 후, 외부 서비스 동기화를 위해 DiaryUpdatedEvent를 발행
+     */
     @Override
     @Transactional
     public void updateDiary(Long diaryId, DiaryRequest.Update request) {
@@ -293,6 +320,10 @@ public class DiaryServiceImpl implements DiaryService {
         eventPublisher.publishEvent(new DiaryUpdatedEvent(diary));
     }
 
+    /**
+     * [다이어리 삭제]
+     * 일기 데이터 삭제 및 연관된 MongoDB 메타데이터 정리, Kafka 삭제 이벤트 전송
+     */
     @Override
     @Transactional
     public void deleteDiary(Long diaryId) {
@@ -313,6 +344,11 @@ public class DiaryServiceImpl implements DiaryService {
         }
     }
 
+    /**
+     * [비동기 이벤트 핸들러: 일기 생성 시]
+     * 메인 트랜잭션 커밋 후 별도 스레드에서 Vector DB 저장 및 Kafka 메시지 발행 수행
+     * 사용자 응답 속도를 저해하지 않기 위해 비동기로 처리
+     */
     @Async
     @Transactional(propagation = Propagation.NOT_SUPPORTED)
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
@@ -325,6 +361,11 @@ public class DiaryServiceImpl implements DiaryService {
                 diary.getPetId(), diary.getContent(), firstUrl);
     }
 
+    /**
+     * [비동기 이벤트 핸들러: 일기 수정 시]
+     * 메인 트랜잭션이 성공적으로 커밋된(AFTER_COMMIT) 직후 별도 스레드에서 실행
+     * 시맨틱 검색 엔진(Vector DB)과 마이크로서비스 간 데이터 동기화(Kafka)를 담당
+     */
     @Async
     @Transactional(propagation = Propagation.NOT_SUPPORTED)
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
@@ -335,14 +376,25 @@ public class DiaryServiceImpl implements DiaryService {
                 diary.getPetId(), diary.getContent());
     }
 
+
+    /** [이벤트 객체] 다이어리 생성/수정 정보를 담는 Immutable Record */
     public record DiaryCreatedEvent(Diary diary) {}
     public record DiaryUpdatedEvent(Diary diary) {}
 
+    /**
+     * [사용자 및 반려동물 유효성 검증]
+     * Feign Client를 사용하여 유저 및 펫 마이크로서비스로부터 실제 데이터 존재 여부를 확인
+     * 서비스 간의 논리적 무결성을 보장하기 위한 사전 체크 단계
+     */
     private void validateUserAndPet(Long userId, Long petId) {
         try { userClient.getUserInfo(userId); } catch (Exception e) { throw new EntityNotFoundException(ErrorCode.USER_NOT_FOUND); }
         try { petClient.getPetInfo(petId); } catch (FeignException e) { throw new EntityNotFoundException(ErrorCode.PET_NOT_FOUND); }
     }
 
+    /**
+     * [멀티파트 파일 유효성 검사]
+     * 업로드된 파일 리스트가 실제로 데이터를 포함하고 있는지 확인 (null 및 Empty 체크)
+     */
     private boolean isActualFilePresent(List<MultipartFile> files) {
         return files != null && !files.isEmpty() && !files.get(0).isEmpty();
     }

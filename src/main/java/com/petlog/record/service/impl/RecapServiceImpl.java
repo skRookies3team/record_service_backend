@@ -26,6 +26,11 @@ import org.springframework.transaction.annotation.Transactional;
 import java.util.*;
 import java.util.stream.Collectors;
 
+/**
+ * [AI 월간 리캡 서비스 구현체]
+ * 한 달간의 일기 데이터를 수집/분석하여 요약 리포트를 생성하고,
+ * 그에 따른 사용자 보상(코인) 및 알림 발송을 관리하는 서비스
+ */
 @Slf4j
 @Service
 @RequiredArgsConstructor
@@ -38,6 +43,15 @@ public class RecapServiceImpl implements RecapService {
     private final NotificationClient notificationClient; // 리캡 알림 연동
     private final UserClient userClient;  // 리캡 코인 연동
 
+    /**
+     * [AI 리캡 생성 및 보상 처리 API]
+     * 1. 데이터 집계: 대상 기간의 일기 목록 조회
+     * 2. 보안 검증: 조회된 일기들의 소유권 확인
+     * 3. 이미지 선정: 대표 이미지 중 최대 8장을 랜덤 추출하여 리캡 앨범 구성
+     * 4. AI 분석: LLM을 통한 제목/총평/하이라이트 추출
+     * 5. 결과 저장: GENERATED 상태로 리캡 엔티티 저장
+     * 6. 사후 처리: 작성 보상 코인 적립 및 생성 완료 알림 발송
+     */
     @Override
     @Transactional
     public Long createAiRecap(RecapRequest.Generate request) {
@@ -143,8 +157,8 @@ public class RecapServiceImpl implements RecapService {
     }
 
     /**
-     * WAITING 상태의 리캡을 단순히 생성만 합니다.
-     *
+     * [리캡 생성 예약]
+     * 스케줄러가 차후에 처리할 수 있도록 리캡 데이터를 'WAITING' 상태로 선 생성
      */
     @Override
     @Transactional
@@ -199,7 +213,13 @@ public class RecapServiceImpl implements RecapService {
         return RecapResponse.Detail.fromEntity(recap);
     }
 
-
+    /**
+     * [사용자별 전체 리캡 목록 조회]
+     * 사용자가 보유한 모든 반려동물의 리캡 이력을 통합하여 조회
+     * 주로 '마이페이지'나 '전체 리캡 보관함' 화면에서 사용되며, 최신순으로 정렬하여 제공
+     * @param userId 사용자 고유 식별자
+     * @return 요약 정보가 담긴 RecapResponse.Simple 리스트
+     */
     @Override
     public List<RecapResponse.Simple> getAllRecaps(Long userId) {
         return recapRepository.findAllByUserIdOrderByCreatedAtDesc(userId).stream()
@@ -207,6 +227,13 @@ public class RecapServiceImpl implements RecapService {
                 .collect(Collectors.toList());
     }
 
+    /**
+     * [반려동물별 리캡 히스토리 조회]
+     * 특정 반려동물 한 마리에 대해 쌓인 월간 리캡 목록을 조회
+     * 펫 프로필의 '성장 기록' 또는 '타임라인' UI를 구성할 때 사용됨
+     * @param petId 반려동물 고유 식별자
+     * @return 해당 펫의 연도별/월별 요약 정보 리스트
+     */
     @Override
     public List<RecapResponse.Simple> getRecapsByPet(Long petId) {
         return recapRepository.findAllByPetIdOrderByCreatedAtDesc(petId).stream()

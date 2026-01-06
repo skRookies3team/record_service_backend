@@ -18,8 +18,9 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * 벡터 DB (Milvus) 전담 서비스
- * 일기 내용을 임베딩하여 벡터 저장소에 저장 및 관리
+ * [벡터 DB(Milvus) 관리 서비스]
+ * 일기 본문을 임베딩(Embedding)하여 벡터 저장소에 적재함으로써
+ * 시맨틱 검색(Semantic Search) 및 RAG(검색 증강 생성) 기술의 기반을 제공
  */
 @Slf4j
 @Service
@@ -32,6 +33,12 @@ public class DiaryVectorService {
     @Value("${spring.ai.vectorstore.milvus.collection-name:vector_store}")
     private String collectionName;
 
+    /**
+     * [일기 데이터 벡터화 및 저장]
+     * 일기 본문과 메타데이터를 결합하여 벡터 저장소(Milvus)에 비동기로 저장
+     * 저장 직후 Flush를 통해 데이터의 즉각적인 가시성(Visibility)을 확보함
+     * * @param diary 저장 대상 일기 엔티티
+     */
     @Async
     public void saveToVectorDB(Diary diary) {
         try {
@@ -61,6 +68,10 @@ public class DiaryVectorService {
         }
     }
 
+    /**
+     * [컬렉션 존재 여부 확인]
+     * Milvus 내 지정된 컬렉션이 생성되어 있는지 확인
+     */
     private boolean hasCollection(String name) {
         try {
             R<Boolean> response = milvusClient.hasCollection(HasCollectionParam.newBuilder()

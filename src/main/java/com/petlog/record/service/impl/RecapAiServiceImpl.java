@@ -12,12 +12,26 @@ import org.springframework.stereotype.Service;
 import java.util.List;
 import java.util.Map;
 
+/**
+ * [AI 월간 분석 서비스 구현체]
+ * 한 달간 축적된 일기 데이터를 LLM(Large Language Model)에 전달하여
+ * 반려동물의 성장 리포트 및 요약 콘텐츠를 생성하는 서비스
+ */
 @Service
 @RequiredArgsConstructor
 public class RecapAiServiceImpl implements RecapAiService {
 
     private final ChatModel chatModel;
 
+    /**
+     * [월간 리캡 데이터 분석 및 생성]
+     * 대량의 일기 텍스트를 분석하여 구조화된 리캡 데이터(제목, 요약, 하이라이트)로 변환
+     * * @param petName 반려동물 이름
+     * @param year 대상 연도
+     * @param month 대상 월
+     * @param diaryEntries 한 달간의 일기 본문 목록
+     * @return AI 분석 결과 객체 (RecapAiResponse)
+     */
     @Override
     public RecapAiResponse analyzeMonth(String petName, int year, int month, List<String> diaryEntries) {
         BeanOutputConverter<RecapAiResponse> converter = new BeanOutputConverter<>(RecapAiResponse.class);
