@@ -7,17 +7,17 @@ import org.springframework.stereotype.Repository;
 import java.util.Optional;
 import java.util.List;
 
+/**
+ * [다이어리 스타일 설정 리포지토리]
+ * 유저별/펫별/일기별로 개인화된 UI 스타일 설정값을 조회
+ */
 @Repository
 public interface DiaryStyleRepository extends JpaRepository<DiaryStyle, Long> {
 
+    /** [개별 일기 스타일] 특정 일기에 고유하게 적용된 스타일 조회 */
     Optional<DiaryStyle> findByDiaryId(Long diaryId);
 
-    // [핵심] 스타일 생성/조회 시 사용: 특정 사용자의 특정 펫에 대한 스타일을 찾음
+    /** [펫별 스타일] 특정 반려동물 다이어리에 적용된 테마 설정 조회 */
     Optional<DiaryStyle> findByUserIdAndPetId(Long userId, Long petId);
-    
-    // 사용자가 소유한 모든 스타일 설정을 조회할 때 사용 가능
-    List<DiaryStyle> findAllByUserId(Long userId);
-    
-    // 펫 ID 없이 사용자 전체의 기본 스타일을 찾을 때 사용 가능
-    Optional<DiaryStyle> findByUserIdAndPetIdIsNull(Long userId);
+
 }

@@ -13,9 +13,16 @@ import lombok.NoArgsConstructor;
 import java.time.LocalDate;
 import java.util.List;
 
+/**
+ * [AI 월간 리캡 요청 DTO]
+ * 특정 기간의 다이어리 데이터를 집계하여 AI 요약 콘텐츠를 생성하고 저장하기 위한 객체군
+ */
 public class RecapRequest {
 
-    // [Request] AI 리캡 생성 요청 전용 DTO
+    /**
+     * [AI 리캡 생성 요청 DTO]
+     * 특정 펫 한 마리에 대해 지정된 기간의 일기 데이터를 분석하여 리캡 생성을 요청할 때 사용
+     */
     @Data
     @Builder
     @NoArgsConstructor
@@ -43,7 +50,10 @@ public class RecapRequest {
         private String petName;
     }
 
-    // [추가됨] 모든 펫 리캡 일괄 생성 요청 전용 DTO
+    /**
+     * [모든 펫 리캡 일괄 생성 요청 DTO]
+     * 사용자가 보유한 모든 반려동물에 대해 특정 기간의 리캡을 한 번에 생성 요청할 때 사용
+     */
     @Data
     @Builder
     @NoArgsConstructor
@@ -64,7 +74,10 @@ public class RecapRequest {
         private LocalDate periodEnd;
     }
 
-    // [Request] 리캡 생성 및 저장용 (기존 필드 및 로직 유지)
+    /**
+     * [리캡 생성 및 저장 요청 DTO]
+     * AI 분석이 완료된 최종 결과물 또는 스케줄러에 의한 예약(WAITING) 데이터를 DB에 저장할 때 사용
+     */
     @Data
     @Builder
     @NoArgsConstructor
@@ -104,7 +117,10 @@ public class RecapRequest {
         @Schema(description = "리캡 상태", example = "WAITING")
         private String status; // 추가
 
-        // DTO -> Entity 변환 메서드 수정
+        /**
+         * [엔티티 변환 메서드]
+         * DTO 데이터를 Recap 도메인 엔티티로 매핑하며, 상태값이 없을 경우 기본값(GENERATED) 적용
+         */
         public Recap toEntity() {
             RecapStatus recapStatus = (this.status != null)
                     ? RecapStatus.valueOf(this.status)
@@ -133,6 +149,10 @@ public class RecapRequest {
         }
     }
 
+    /**
+     * [리캡 하이라이트 정보 DTO]
+     * 한 달 중 가장 의미 있었던 특정 순간의 제목과 내용을 담는 객체
+     */
     @Data
     @Builder
     @NoArgsConstructor
@@ -146,6 +166,7 @@ public class RecapRequest {
         @Schema(description = "하이라이트 내용", example = "처음으로 강아지 친구를 만났어요.")
         private String content;
 
+        /** 하이라이트 정보를 RecapHighlight 엔티티로 변환 */
         public RecapHighlight toEntity() {
             return RecapHighlight.builder()
                     .title(this.title)

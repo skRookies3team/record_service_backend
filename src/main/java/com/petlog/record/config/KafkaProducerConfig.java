@@ -1,6 +1,5 @@
 package com.petlog.record.config;
 
-import com.petlog.record.dto.DiaryEventMessage;
 import org.apache.kafka.clients.producer.ProducerConfig;
 import org.apache.kafka.common.serialization.StringSerializer;
 import org.springframework.beans.factory.annotation.Value;

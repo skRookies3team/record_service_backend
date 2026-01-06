@@ -8,6 +8,10 @@ import org.springframework.web.multipart.MultipartFile;
 
 import java.util.List;
 
+/**
+ * [이미지 서비스 외부 API 호출]
+ * 이미지 서비스(image-service)와 통신하여 사진 업로드 및 URL 조회를 처리하기 위한 FeignClient
+ */
 @FeignClient(name = "image-service", url = "${IMAGE_SERVICE_URL}")
 public interface ImageClient {
 
@@ -22,7 +26,11 @@ public interface ImageClient {
             @RequestPart("images") List<MultipartFile> images
     );
 
-
+    /**
+     * [보관함 URL 조회 API 호출]
+     * 이미지 서비스의 ArchiveController.getArchiveUrl을 호출
+     * 보관함 ID를 통해 저장된 이미지의 접근 가능한 URL을 조회
+     */
     @GetMapping("/api/archives/{archiveId}/url")
     String getArchiveUrl(@PathVariable("archiveId") Long archiveId);
 }

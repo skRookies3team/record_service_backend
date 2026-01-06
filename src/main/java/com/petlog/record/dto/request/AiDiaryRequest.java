@@ -7,6 +7,11 @@ import lombok.ToString;
 
 import java.util.List;
 
+/**
+ * [AI 일기 미리보기 요청 DTO]
+ * 사용자가 입력한 사진, 키워드, 위치 정보를 기반으로
+ * AI에게 일기 초안 작성을 요청할 때 사용하는 객체
+ */
 @Getter
 @NoArgsConstructor
 @ToString

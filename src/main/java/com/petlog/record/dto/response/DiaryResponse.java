@@ -12,6 +12,10 @@ import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 
+/**
+ * [다이어리 상세 조회 응답 DTO]
+ * 특정 일기의 모든 정보(RDB 기본 정보 + MongoDB 메타데이터 + UI 스타일)를 통합하여 반환하는 객체
+ */
 @Data
 @Getter
 @Builder
@@ -23,7 +27,6 @@ public class DiaryResponse {
     @Schema(description = "다이어리 ID", example = "1")
     private Long diaryId;
 
-    // ✅ 제목 필드 추가
     @Schema(description = "일기 제목", example = "햇살 좋은 날의 산책")
     private String title;
 
@@ -36,7 +39,6 @@ public class DiaryResponse {
     @Schema(description = "일기 내용", example = "오늘 공원에서 산책하며 즐거운 시간을 보냈다.")
     private String content;
 
-    // ✅ 일기 기록 날짜 필드 추가
     @Schema(description = "일기 기록 날짜", example = "2023-10-25")
     private LocalDate date;
 
@@ -70,21 +72,21 @@ public class DiaryResponse {
     @Schema(description = "첨부 이미지 목록")
     private List<Image> images;
 
-    // ✅ 스타일 정보 추가
     @Schema(description = "다이어리 스타일 설정")
     private DiaryStyleResponse style;
 
     /**
-     * Entity -> DTO 변환 로직 (Service에서 호출)
+     * [변환 메서드]
+     * JPA 엔티티 객체를 기반으로 Response DTO를 생성
      */
     public static DiaryResponse fromEntity(Diary diary) {
         return DiaryResponse.builder()
                 .diaryId(diary.getDiaryId())
-                .title(diary.getTitle()) // ✅ 엔티티에서 제목 가져오기 추가
+                .title(diary.getTitle())
                 .userId(diary.getUserId())
                 .petId(diary.getPetId())
                 .content(diary.getContent())
-                .date(diary.getDate()) // ✅ 날짜 매핑 추가
+                .date(diary.getDate())
                 .locationName(diary.getLocationName())
                 .latitude(diary.getLatitude())
                 .longitude(diary.getLongitude())
@@ -101,7 +103,8 @@ public class DiaryResponse {
     }
 
     /**
-     * 다이어리 이미지 정보 DTO
+     * [이미지 상세 정보 DTO]
+     * 개별 이미지의 DB 정보와 MongoDB의 비정형 메타데이터를 결합한 객체
      */
     @Data
     @Builder
@@ -122,7 +125,7 @@ public class DiaryResponse {
         @Schema(description = "대표 이미지 여부", example = "true")
         private Boolean mainImage;
 
-        // ✅ [추가] 각 이미지별 몽고DB 메타데이터
+        /** [MongoDB 연동] 이미지별 상세 비정형 데이터 (EXIF 정보 등) */
         @Schema(description = "이미지 상세 메타데이터(몽고DB)")
         private Map<String, Object> metadata;
 
@@ -132,7 +135,7 @@ public class DiaryResponse {
                     .imageUrl(image.getImageUrl())
                     .imgOrder(image.getImgOrder())
                     .mainImage(image.getMainImage())
-                    .metadata(mongoMetadata) // 여기서 합쳐짐
+                    .metadata(mongoMetadata)
                     .build();
         }
     }

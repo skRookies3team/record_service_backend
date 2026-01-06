@@ -7,6 +7,10 @@ import org.hibernate.annotations.UpdateTimestamp;
 
 import java.time.LocalDateTime;
 
+/**
+ * [리캡 하이라이트 엔티티]
+ * AI가 선정한 한 달 중 가장 의미 있는 특정 순간의 제목과 내용을 담는 상세 객체
+ */
 @Entity
 @Getter
 @Builder

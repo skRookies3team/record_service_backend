@@ -18,6 +18,11 @@ import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.Optional;
 
+/**
+ * [기상 정보 통합 연동 서비스 구현체]
+ * 기상청 단기예보(실시간) 및 ASOS(과거 관측) API를 호출하여 위치 기반 기상 정보 제공
+ * 공공데이터 포털 특유의 인증 키 인코딩 문제를 해결하기 위해 URI 객체 생성 방식을 정교화함
+ */
 @Slf4j
 @Service
 @RequiredArgsConstructor
@@ -41,6 +46,10 @@ public class WeatherServiceImpl implements WeatherService {
     private static final String FCST_API_URL = "http://apis.data.go.kr/1360000/VilageFcstInfoService_2.0/getUltraSrtFcst";
     private static final String ASOS_API_URL = "http://apis.data.go.kr/1360000/AsosDalyInfoService/getWthrDataList";
 
+    /**
+     * [현재 날씨 조회 (단기예보)]
+     * 기상청 격자 좌표(nx, ny)를 기반으로 현재 시점의 기상 상태(강수, 하늘 상태)를 분석
+     */
     @Override
     public String getCurrentWeather(int nx, int ny) {
         try {
@@ -73,6 +82,11 @@ public class WeatherServiceImpl implements WeatherService {
         }
     }
 
+    /**
+     * [과거 날씨 조회 (ASOS)]
+     * 1. PostGIS를 통해 위경도와 가장 인접한 관측소(Station) 식별
+     * 2. 해당 관측소의 과거 일자 데이터를 조회하여 분석
+     */
     @Override
     public String getPastWeather(LocalDate date, double lat, double lng) {
         if (!date.isBefore(LocalDate.now())) {
@@ -98,6 +112,17 @@ public class WeatherServiceImpl implements WeatherService {
         }
     }
 
+    /**
+     * [ASOS 과거 기상 데이터 호출]
+     * 지정된 날짜와 관측소 식별자를 기반으로 공공데이터 포털의 ASOS API를 호출
+     * * [기술적 해결: 401 Unauthorized 에러 방지]
+     * 공공데이터 포털의 서비스 키는 인코딩/디코딩 상태에 따라 API 호출이 실패할 확률이 높음
+     * UriComponentsBuilder를 통해 키를 주입하고 마지막에 .encode()를 수행하여
+     * RestTemplate에 의한 이중 인코딩 문제를 원천 차단함
+     * * @param date 관측 일자
+     * @param stationId 기상청 관측소 번호
+     * @return 분석된 날씨 결과 문자열
+     */
     private String fetchAsosWeather(LocalDate date, int stationId) {
         try {
             String dateStr = date.format(DateTimeFormatter.ofPattern("yyyyMMdd"));
@@ -128,6 +153,14 @@ public class WeatherServiceImpl implements WeatherService {
         }
     }
 
+    /**
+     * [ASOS 응답 데이터 파싱 및 날씨 추론]
+     * 기상청 관측 데이터(JSON)에서 기상현상, 강수량, 운량을 분석하여 서비스 표준 날씨로 변환
+     * * [추론 로직 우선순위]
+     * 1. 기상현상(iscs): '눈' 또는 '비' 단어가 포함된 경우 해당 날씨를 즉시 반환
+     * 2. 강수량(sumRn): 현상 코드에 없더라도 실제 강수량이 감지되면 '비'로 판단
+     * 3. 전운량(avgTca): 현상이 없는 경우 평균 운량에 따라 '맑음/구름많음/흐림' 결정
+     */
     private String parseAsosResponse(String jsonResponse) {
         try {
             JsonNode root = objectMapper.readTree(jsonResponse);
@@ -152,6 +185,12 @@ public class WeatherServiceImpl implements WeatherService {
         }
     }
 
+    /**
+     * [단기예보(실시간) 응답 데이터 파싱]
+     * 기상청 실시간 예보 JSON에서 강수형태(PTY)와 하늘상태(SKY) 카테고리만 필터링하여 추출
+     * * @param jsonResponse API로부터 전달받은 원본 JSON
+     * @return 서비스 표준 날씨 명칭 (mapWeatherCode로 변환)
+     */
     private String parseFcstResponse(String jsonResponse) {
         try {
             JsonNode root = objectMapper.readTree(jsonResponse);
@@ -173,6 +212,10 @@ public class WeatherServiceImpl implements WeatherService {
         }
     }
 
+    /**
+     * [기상 코드 매핑 테이블]
+     * API 응답 코드(PTY, SKY)를 서비스 내 표준 명칭으로 변환
+     */
     private String mapWeatherCode(String pty, String sky) {
         if (pty != null && !"0".equals(pty)) {
             switch (pty) {

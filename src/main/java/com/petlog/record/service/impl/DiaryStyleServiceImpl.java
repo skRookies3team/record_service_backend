@@ -14,14 +14,24 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.util.Optional;
 
+/**
+ * [다이어리 스타일 설정 서비스 구현체]
+ * 일기장의 레이아웃, 폰트, 배경색 등 UI 커스터마이징 정보를 관리
+ * 유저/펫/일기 단위의 설정 우선순위를 처리하며, 설정 부재 시 시스템 기본값을 제공함
+ */
 @Service
 @RequiredArgsConstructor
-@Transactional(readOnly = true) // 클래스 레벨: 기본은 읽기 전용
+@Transactional(readOnly = true)
 public class DiaryStyleServiceImpl implements DiaryStyleService {
 
     private final DiaryStyleRepository diaryStyleRepository;
 
-    @Transactional // [수정] 쓰기 트랜잭션 부여
+    /**
+     * [기본 스타일 생성]
+     * 특정 사용자나 반려동물에게 부여할 시스템 표준 스타일 설정을 생성하고 저장
+     * @return 생성된 기본 DiaryStyle 엔티티
+     */
+    @Transactional
     public DiaryStyle createDefaultStyle(Long userId, Long petId) {
         DiaryStyle defaultStyle = DiaryStyle.builder()
                 .userId(userId)
@@ -35,98 +45,96 @@ public class DiaryStyleServiceImpl implements DiaryStyleService {
                 .themeStyle("basic")
                 .build();
 
-        // save 호출
         return diaryStyleRepository.save(defaultStyle);
     }
 
-@Override
-@Transactional // 쓰기 트랜잭션 (데이터 생성/수정 가능)
-public DiaryStyleResponse createOrUpdateStyle(Long userId, DiaryStyleRequest request) {
-    // [수정] 1. 다이어리 ID가 있는 경우 (개별 다이어리 스타일 우선)
-    if (request.getDiaryId() != null) {
-        Optional<DiaryStyle> existingDiaryStyle = diaryStyleRepository.findByDiaryId(request.getDiaryId());
-        if (existingDiaryStyle.isPresent()) {
-            // 이미 있으면 업데이트
-            return updateStyle(existingDiaryStyle.get().getId(), request, userId);
-        }
-        // 없으면 새로 생성 (CREATE) -> 아래 로직으로 진행
-    }
-    // [기존 로직 유지?] 2. 만약 DiaryId가 없고 (UserId, PetId)로 찾는 경우라면...
-    // -> 현재 요구사항은 "다이어리 생성할 때마다 스타일 DB 업데이트" 이므로
-    //    그냥 항상 새로 만들거나 DiaryId로 찾는게 맞습니다.
-    //    PetId/UserId 기준 글로벌 설정은 "기본값 불러오기" 용도로만 쓰고
-    //    저장(Create)은 무조건 DiaryId와 매핑하는 것이 좋습니다.
-    // 여기서는 "요청에 DiaryId가 있으면 무조건 해당 다이어리에 대한 스타일을 만든다"는 가정하에 진행합니다.
-
-    DiaryStyle style = request.toEntity(userId);
-    DiaryStyle saved = diaryStyleRepository.save(style);
-
-    return DiaryStyleResponse.fromEntity(saved);
-}
-
+    /**
+     * [스타일 생성 또는 갱신 (Upsert)]
+     * 개별 다이어리에 대한 전용 스타일을 설정하며, 이미 존재하는 경우 기존 설정을 업데이트함
+     * @param userId 요청자 ID
+     * @param request 스타일 설정 데이터 (diaryId 포함 가능)
+     */
     @Override
-    @Transactional // 쓰기 트랜잭션 (데이터 수정 가능)
+    @Transactional
+    public DiaryStyleResponse createOrUpdateStyle(Long userId, DiaryStyleRequest request) {
+        // 1. 개별 다이어리 전용 스타일이 이미 있는지 확인 (우선순위 최고)
+        if (request.getDiaryId() != null) {
+            Optional<DiaryStyle> existingDiaryStyle = diaryStyleRepository.findByDiaryId(request.getDiaryId());
+            if (existingDiaryStyle.isPresent()) {
+                return updateStyle(existingDiaryStyle.get().getId(), request, userId);
+            }
+        }
+
+        // 2. 새로운 스타일 설정 생성 및 저장
+        DiaryStyle style = request.toEntity(userId);
+        DiaryStyle saved = diaryStyleRepository.save(style);
+
+        return DiaryStyleResponse.fromEntity(saved);
+    }
+
+    /**
+     * [스타일 정보 수정]
+     * 기존 스타일 설정의 각 필드를 부분적으로 수정하며, 소유권 권한 검증을 수행
+     * @param styleId 수정 대상 스타일 고유 ID
+     * @param userId 수정 요청자 ID (권한 검증용)
+     */
+    @Override
+    @Transactional
     public DiaryStyleResponse updateStyle(Long styleId, DiaryStyleRequest request, Long userId) {
         DiaryStyle style = diaryStyleRepository.findById(styleId)
-                // [수정] ResourceNotFoundException에 ErrorCode를 함께 전달
-                .orElseThrow(() -> new ResourceNotFoundException(ErrorCode.DIARY_NOT_FOUND, "Style not found"));
+                .orElseThrow(() -> new ResourceNotFoundException(ErrorCode.DIARY_NOT_FOUND, "스타일 설정을 찾을 수 없습니다."));
 
-        // 권한 확인
+        // [보안 검증] 자신의 스타일 설정만 수정 가능
         if (!style.getUserId().equals(userId)) {
-            throw new UnauthorizedException("Not authorized");
+            throw new UnauthorizedException("해당 스타일 설정을 수정할 권한이 없습니다.");
         }
 
-        // 업데이트 (PUT 방식 로직 유지)
-        if (request.getGalleryType() != null) {
-            style.setGalleryType(request.getGalleryType());
-        }
-        if (request.getTextAlignment() != null) {
-            style.setTextAlignment(request.getTextAlignment());
-        }
-        if (request.getFontSize() != null) {
-            style.setFontSize(request.getFontSize());
-        }
-        if (request.getSizeOption() != null) {
-            style.setSizeOption(request.getSizeOption());
-        }
-        if (request.getBackgroundColor() != null) {
-            style.setBackgroundColor(request.getBackgroundColor());
-        }
-        if (request.getPreset() != null) {
-            style.setPreset(request.getPreset());
-        }
-        if (request.getThemeStyle() != null) {
-            style.setThemeStyle(request.getThemeStyle());
-        }
+        // 필드별 null 체크 후 업데이트 (Dirty Checking 활용)
+        if (request.getGalleryType() != null) style.setGalleryType(request.getGalleryType());
+        if (request.getTextAlignment() != null) style.setTextAlignment(request.getTextAlignment());
+        if (request.getFontSize() != null) style.setFontSize(request.getFontSize());
+        if (request.getSizeOption() != null) style.setSizeOption(request.getSizeOption());
+        if (request.getBackgroundColor() != null) style.setBackgroundColor(request.getBackgroundColor());
+        if (request.getPreset() != null) style.setPreset(request.getPreset());
+        if (request.getThemeStyle() != null) style.setThemeStyle(request.getThemeStyle());
 
-        // Dirty Checking으로 트랜잭션 종료 시 반영됨
         return DiaryStyleResponse.fromEntity(style);
     }
 
-    // [수정] READ-ONLY 트랜잭션 유지 (INSERT는 createDefaultStyle의 새 트랜잭션에 위임)
-    // orElseGet에서 createDefaultStyle(public + @Transactional)을 호출
+    /**
+     * [사용자/펫 스타일 조회 및 자동 생성]
+     * 특정 펫의 스타일 설정을 조회하며, 데이터가 없는 경우 시스템 기본값으로 자동 생성(Lazy Init)하여 반환
+     */
     @Override
     @Transactional(readOnly = true)
     public DiaryStyleResponse getUserStyle(Long userId, Long petId) {
         DiaryStyle style = diaryStyleRepository
                 .findByUserIdAndPetId(userId, petId)
-                .orElseGet(() -> createDefaultStyle(userId, petId)); // 새로운 트랜잭션으로 분리되어 호출
+                .orElseGet(() -> createDefaultStyle(userId, petId));
 
         return DiaryStyleResponse.fromEntity(style);
     }
 
+    /**
+     * [펫 전용 스타일 조회]
+     * getUserStyle을 래핑하여 특정 반려동물의 UI 테마 정보를 조회
+     */
     @Override
     @Transactional(readOnly = true)
     public DiaryStyleResponse getPetStyle(Long petId, Long userId) {
         return getUserStyle(userId, petId);
     }
 
-    // DiaryStyleServiceImpl.java
+    /**
+     * [개별 일기 스타일 조회]
+     * 특정 일기(Diary)에 특화되어 설정된 스타일이 있는지 확인
+     * @return 스타일 존재 시 DTO 반환, 없을 시 null 반환 (상위 설정 호출 유도)
+     */
     @Override
     @Transactional(readOnly = true)
     public DiaryStyleResponse getDiaryStyle(Long diaryId) {
         DiaryStyle style = diaryStyleRepository.findByDiaryId(diaryId)
-                .orElse(null); // 스타일이 없으면 null 반환
+                .orElse(null);
 
         return style != null ? DiaryStyleResponse.fromEntity(style) : null;
     }
