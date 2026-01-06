@@ -15,7 +15,10 @@ import java.util.Map;
 
 public class DiaryRequest {
 
-    // [Request] 일기 생성
+    /**
+     * [다이어리 최종 생성 요청 DTO]
+     * AI가 제안한 초안을 사용자가 수정한 후, 데이터베이스에 영구 저장하기 위해 전달하는 객체
+     */
     @Data
     @Getter
     @Builder
@@ -39,19 +42,19 @@ public class DiaryRequest {
         @Schema(description = "관련된 사진 보관함 ID", example = "10")
         private Long photoArchiveId;
 
-        // [추가] 위치 정보 (선택)
+        // 위치 정보 (선택)
         @Schema(description = "위도", example = "37.5665")
         private Double latitude;
 
         @Schema(description = "경도", example = "126.9780")
         private Double longitude;
 
-        // [수정] 주소명 필드 추가
+        // 주소명 필드 추가
         @Schema(description = "위치 주소 (직접 입력 시)", example = "서울 마포구")
         private String locationName;
 
         @Schema(description = "일기 날짜 (과거 일기 작성 시 필수)", example = "2023-10-25")
-        private LocalDate date; // [추가] 날짜 필드
+        private LocalDate date;
 
         @Schema(description = "일기 내용", example = "오늘 산책 너무 즐거웠어!")
         private String content;
@@ -71,24 +74,27 @@ public class DiaryRequest {
         @Schema(description = "첨부 이미지 목록")
         private List<Image> images;
 
-        // --- 추가된 필드: 미리보기 결과물을 다시 전달받기 위한 용도 ---
+        /** [미리보기 연동] 이미지 업로드 후 발급받은 URL 목록 */
 
         @Schema(description = "미리보기 단계에서 발급받은 이미지 URL 목록")
         @JsonProperty("imageUrls")
         private List<String> imageUrls;
 
+        /** [미리보기 연동] 이미지 서비스 보관함에 저장된 ID 목록 */
         @Schema(description = "미리보기 단계에서 발급받은 보관함(Archive) ID 목록")
         @JsonProperty("archiveIds")
         private List<Long> archiveIds;
 
-        // DTO -> Diary Entity 변환
+        /**
+         * [엔티티 변환 메서드]
+         * DTO 데이터를 기반으로 Diary 도메인 엔티티를 생성
+         */
         public Diary toEntity() {
             Diary diary = Diary.builder()
                     .userId(this.userId)
                     .petId(this.petId)
-                    .title(this.title) // 추가됨
+                    .title(this.title)
                     .date(this.date)
-                    //.photoArchiveId(this.photoArchiveId)
                     .content(this.content)
                     .visibility(this.visibility)
                     .isAiGen(this.isAiGen)
@@ -105,6 +111,10 @@ public class DiaryRequest {
         }
     }
 
+    /**
+     * [다이어리 정보 수정 요청 DTO]
+     * 기존에 저장된 일기의 제목, 내용, 공개 범위 등을 변경할 때 사용
+     */
     @Data
     @Builder
     @NoArgsConstructor
@@ -133,7 +143,10 @@ public class DiaryRequest {
         private String mood;
     }
 
-    // [Inner DTO] 이미지 요청용
+    /**
+     * [이미지 정보 상세 DTO]
+     * 일기에 포함되는 개별 이미지의 출처, 순서, 메타데이터 정보를 관리
+     */
     @Data
     @Builder
     @NoArgsConstructor
@@ -159,10 +172,16 @@ public class DiaryRequest {
         @Schema(description = "이미지 출처가 ARCHIVE일 경우의 보관함 ID (source가 ARCHIVE일 때 필수)", example = "10")
         private Long archiveId;
 
-        // ✅ [추가] MongoDB에 저장될 비정형 데이터 (EXIF, 기기정보, AI 태그 등)
+        /** * [비정형 메타데이터]
+         * MongoDB 등에 저장될 사진의 기술적 정보(EXIF, 위치 등)를 Key-Value 형태로 저장
+         */
         @Schema(description = "사진 메타데이터 (비정형)", example = "{\"camera\": \"iPhone 15\", \"location\": \"Seoul\"}")
         private Map<String, Object> metadata;
 
+        /**
+         * [엔티티 변환 메서드]
+         * 이미지 정보를 DiaryImage 엔티티로 매핑
+         */
         public DiaryImage toEntity(Long userId) {
             return DiaryImage.builder()
                     .userId(userId)

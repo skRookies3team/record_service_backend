@@ -9,13 +9,18 @@ import lombok.NoArgsConstructor;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 
+/**
+ * [펫 서비스 응답 DTO]
+ * 펫 서비스(pet-service)로부터 반려동물의 상세 프로필 정보를 받아오기 위한 객체
+ * 기록 서비스 내에서 AI 일기 생성, 리캡 데이터 구성 시 펫의 메타데이터로 활용됨
+ */
 @Getter
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
 public class PetClientResponse {
 
-    // PetResponse.GetPetDto 구조에 맞춤
+    // 펫 식별 고유 ID
     private Long petId;
     //펫 이름
     private String petName;

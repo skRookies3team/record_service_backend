@@ -9,27 +9,20 @@ import org.springframework.stereotype.Repository;
 import java.time.LocalDate;
 import java.util.List;
 
+/**
+ * [다이어리 핵심 리포지토리]
+ * 다이어리의 기본 CRUD 및 AI 리캡 집계를 위한 도메인 비즈니스 쿼리를 담당
+ */
 @Repository
 public interface DiaryRepository extends JpaRepository<Diary, Long> {
-    // 특정 사용자가 작성한 모든 일기 목록 조회
-    List<Diary> findAllByUserId(Long userId);
 
-    // 특정 펫에 대해 작성된 모든 일기 목록 조회
-    List<Diary> findAllByPetId(Long petId);
-
-    // AI 리캡 조회를 위해 추가 (필드명이 date일 경우)
+    /** [리캡 분석용 조회] 특정 기간 동안 특정 반려동물의 일기 데이터를 수집 */
     List<Diary> findAllByPetIdAndDateBetween(Long petId, LocalDate start, LocalDate end);
 
-    /**
-     * 특정 사용자가 특정 펫의 일기를 작성한 적이 있는지 확인합니다.
-     * 리캡 예약 시 소유권 및 기록 여부를 검증하기 위해 사용됩니다.
-     */
+    /** [권한 검증] 사용자가 해당 펫의 일기를 작성할 권한(기록 이력)이 있는지 확인 */
     boolean existsByPetIdAndUserId(Long petId, Long userId);
 
-    /**
-     * 특정 사용자가 일기를 작성한 모든 펫의 ID 목록을 조회합니다.
-     * [추가됨] 펫이 여러 마리일 때 모든 펫에 대해 리캡을 예약하기 위함입니다.
-     */
+    /** [일괄 처리용] 일기 기록이 존재하는 모든 펫의 식별자 목록을 중복 없이 조회 */
     @Query("SELECT DISTINCT d.petId FROM Diary d WHERE d.userId = :userId")
     List<Long> findDistinctPetIdsByUserId(@Param("userId") Long userId);
 }

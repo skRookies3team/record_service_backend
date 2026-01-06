@@ -7,6 +7,11 @@ import org.hibernate.annotations.UpdateTimestamp;
 
 import java.time.LocalDateTime;
 
+/**
+ * [다이어리 스타일 설정 엔티티]
+ * 사용자가 설정한 일기장의 레이아웃, 폰트, 배경색 등 UI 렌더링 옵션을 저장
+ * 유저 기본 스타일, 펫별 스타일, 개별 일기 스타일을 유연하게 처리하기 위한 구조
+ */
 @Entity
 @Getter
 @Setter // Service에서 Dirty Checking을 위해 필요
@@ -76,6 +81,4 @@ public class DiaryStyle {
     @UpdateTimestamp
     private LocalDateTime updatedAt;
 
-    // 참고: Foreign Key는 논리적으로만 존재하며, JPA는 @ManyToOne 등으로 매핑함. 
-    // 여기서는 ID만 저장하는 구조를 따릅니다.
 }

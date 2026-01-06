@@ -21,8 +21,9 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * AI 분석 전담 서비스
- * Spring AI를 사용하여 이미지 분석 및 일기 초안 생성 담당
+ * [AI 분석 및 일기 생성 서비스]
+ * Spring AI 프레임워크를 활용하여 멀티모달(이미지+텍스트) 분석을 수행
+ * 사진의 맥락을 읽어 반려동물의 시점에서 개성 있는 일기 초안을 생성하는 핵심 서비스
  */
 @Slf4j
 @Service
@@ -34,6 +35,16 @@ public class DiaryAiService {
     @Value("classpath:prompts/diary-system.st")
     private Resource systemPromptResource;
 
+    /**
+     * [이미지 기반 AI 일기 초안 생성]
+     * 전달받은 이미지 URL 목록을 분석하여 감성적인 제목, 본문, 날씨, 기분 등을 포함한 JSON 데이터 생성
+     * * [주요 프롬프트 전략]
+     * 1. 스토리 다변화: 뻔한 전개(준비-활동-복귀)를 지양하고 상황에 맞는 다양한 서사 구조 채택
+     * 2. 감각 묘사: 오감(냄새, 소리 등) 중심의 생생한 서술 및 반려동물 특유의 시각 반영
+     * 3. 출력 규격: BeanOutputConverter를 통해 LLM 응답을 AiDiaryResponse 객체로 즉시 구조화
+     * * @param imageUrls 분석할 이미지 S3 URL 리스트
+     * @return AI 분석 결과 객체 (AiDiaryResponse)
+     */
     public AiDiaryResponse generateContentWithAiFromUrls(List<String> imageUrls) {
         BeanOutputConverter<AiDiaryResponse> converter = new BeanOutputConverter<>(AiDiaryResponse.class);
 

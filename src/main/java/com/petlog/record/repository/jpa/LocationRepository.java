@@ -9,13 +9,18 @@ import org.springframework.stereotype.Repository;
 
 import java.time.LocalDate;
 
+/**
+ * [위치 정보 관리 리포지토리]
+ * PostGIS의 공간 연산을 활용하여 이동 경로 중 특정 시점의 좌표를 추출
+ */
 @Repository
 public interface LocationRepository extends JpaRepository<WalkRoute, Long> {
 
-    // [Query 수정]
-    // 날짜를 TIMESTAMP로 캐스팅하여 정확한 24시간 범위 내의 데이터를 조회합니다.
-    // 범위: 해당 날짜 00:00:00 <= created_at < 다음 날짜 00:00:00
-    // ✅ [수정] recorded_date 기준으로 조회
+    /**
+     * [대표 위치 조회]
+     * 특정 날짜에 수집된 위치 데이터 중 가장 최근 지점을 네이티브 쿼리로 조회
+     * @param date recorded_date 필드 기준의 기록 날짜
+     */
     @Query(value = """
         SELECT w.start_point 
         FROM walk_routes w 

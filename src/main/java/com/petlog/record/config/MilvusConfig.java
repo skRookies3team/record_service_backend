@@ -10,8 +10,8 @@ import org.springframework.context.annotation.Configuration;
 @Configuration
 public class MilvusConfig {
 
-    // application.yml에 설정된 milvus 접속 정보를 가져옵니다.
-    // 설정이 없다면 기본값인 localhost:19530을 사용합니다.
+    // application.yml에 설정된 milvus 접속 정보를 가져옴
+    // 설정이 없다면 기본값인 localhost:19530을 사용
     @Value("${spring.ai.vectorstore.milvus.client.host:localhost}")
     private String host;
 
@@ -30,7 +30,7 @@ public class MilvusConfig {
                 .withPort(port)
                 .build();
 
-        // MilvusServiceClient 인스턴스를 생성하여 반환합니다.
+        // MilvusServiceClient 인스턴스를 생성하여 반환
         return new MilvusServiceClient(connectParam);
     }
 }
