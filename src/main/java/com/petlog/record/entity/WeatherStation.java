@@ -11,7 +11,9 @@ import lombok.NoArgsConstructor;
 import org.locationtech.jts.geom.Point;
 
 /**
- * 기상청 종관기상관측(ASOS) 관측소 정보 엔티티
+ * [기상청 종관기상관측(ASOS) 관측소 엔티티]
+ * 전국 기상 관측소의 위치 정보를 저장하며,
+ * 사용자 위치와 가장 가까운 관측소를 PostGIS 근접 거리 연산으로 찾아내기 위해 사용
  */
 @Entity
 @Table(name = "weather_stations")
@@ -19,13 +21,17 @@ import org.locationtech.jts.geom.Point;
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 public class WeatherStation {
 
+    /** 기상청 공식 관측소 번호 (예: 108 - 서울) */
     @Id
     @Column(name = "station_id")
-    private Integer id; // 기상청 관측소 번호 (예: 108)
+    private Integer id;
 
-    private String name; // 관측소 명칭 (예: 서울)
+    /** 관측소 지점 명칭 */
+    private String name;
 
-    // PostGIS Point 객체 (SRID 4326)
+    /** * [공간 데이터: 관측소 위치]
+     * 관측소의 정확한 위/경도 좌표 (SRID 4326)
+     */
     @Column(columnDefinition = "geometry(Point, 4326)")
     private Point location;
 
