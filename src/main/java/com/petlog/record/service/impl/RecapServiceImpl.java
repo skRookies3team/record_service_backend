@@ -114,7 +114,7 @@ public class RecapServiceImpl implements RecapService {
         try {
             Map<String, Object> coinRequest = new HashMap<>();
             coinRequest.put("amount", 30L);
-            coinRequest.put("type", "WRITERECAP");
+            coinRequest.put("type", "RECAP");
 
             userClient.earnCoin(request.getUserId(), coinRequest);
             log.info("[Coin] 리캡 생성 코인 적립 완료: userId={}, amount=30", request.getUserId());
