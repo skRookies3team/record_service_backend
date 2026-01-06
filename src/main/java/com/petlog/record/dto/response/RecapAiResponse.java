@@ -8,6 +8,11 @@ import lombok.NoArgsConstructor;
 
 import java.util.List;
 
+/**
+ * [AI 리캡 분석 결과 응답 DTO]
+ * AI 서비스(LLM)가 한 달간의 데이터를 분석하여 생성한 원천 데이터를 담는 내부용 객체
+ * 이 데이터를 바탕으로 사용자에게 보여줄 최종 리캡 엔티티(Recap)를 구성함
+ */
 @Data
 @Builder
 @NoArgsConstructor
@@ -24,6 +29,10 @@ public class RecapAiResponse {
     @Schema(description = "AI가 선정한 이번 달의 주요 하이라이트 목록")
     private List<HighlightInfo> highlights;
 
+    /**
+     * [AI 분석 하이라이트 세부 정보]
+     * 특정 날짜나 사건을 AI가 특별하게 인식하여 생성한 요약 정보
+     */
     @Data
     @Builder
     @NoArgsConstructor

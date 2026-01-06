@@ -9,6 +9,10 @@ import lombok.AllArgsConstructor;
 
 import java.time.LocalDateTime;
 
+/**
+ * [다이어리 스타일 설정 응답 DTO]
+ * 일기장의 레이아웃 및 디자인 프리셋 등 커스터마이징된 설정값을 반환하는 객체
+ */
 @Data
 @Builder
 @NoArgsConstructor
@@ -20,7 +24,7 @@ public class DiaryStyleResponse {
     private Long id;
 
     @Schema(description = "관련된 다이어리 ID", example = "100")
-    private Long diaryId; // [NEW]
+    private Long diaryId;
 
     @Schema(description = "사용자 ID", example = "1")
     private Long userId;
@@ -55,11 +59,14 @@ public class DiaryStyleResponse {
     @Schema(description = "수정일시")
     private LocalDateTime updatedAt;
 
-    // Entity -> DTO 변환
+    /**
+     * [변환 메서드]
+     * DiaryStyle 엔티티를 UI 렌더링에 적합한 DTO로 변환
+     */
     public static DiaryStyleResponse fromEntity(DiaryStyle style) {
         return DiaryStyleResponse.builder()
                 .id(style.getId())
-                .diaryId(style.getDiaryId()) // [NEW]
+                .diaryId(style.getDiaryId())
                 .userId(style.getUserId())
                 .petId(style.getPetId())
                 .galleryType(style.getGalleryType())
