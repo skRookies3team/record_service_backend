@@ -2,8 +2,8 @@ package com.petlog.record.util;
 
 /**
  * [기상청 격자 좌표 변환 유틸리티]
- * WGS84 지리 좌표(위경도)를 기상청 단기예보 구역인 격자 좌표(nx, ny)로 변환합니다.
- * 이 알고리즘은 램버트 정각 원추 투영법(Lambert Conformal Conic Projection)을 기반으로 합니다.
+ * WGS84 지리 좌표(위경도)를 기상청 단기예보 구역인 격자 좌표(nx, ny)로 변환
+ * 이 알고리즘은 램버트 정각 원추 투영법(Lambert Conformal Conic Projection) 기반
  */
 public class LatXLngY {
 
