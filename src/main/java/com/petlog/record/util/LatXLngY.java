@@ -1,6 +1,18 @@
 package com.petlog.record.util;
 
+/**
+ * [기상청 격자 좌표 변환 유틸리티]
+ * WGS84 지리 좌표(위경도)를 기상청 단기예보 구역인 격자 좌표(nx, ny)로 변환합니다.
+ * 이 알고리즘은 램버트 정각 원추 투영법(Lambert Conformal Conic Projection)을 기반으로 합니다.
+ */
 public class LatXLngY {
+
+    /**
+     * 위경도 좌표를 기상청 격자 좌표로 변환
+     * * @param lat 변환할 위도(Latitude)
+     * @param lng 변환할 경도(Longitude)
+     * @return int[]{nx, ny} (기상청 격자 X, Y 좌표)
+     */
     public static int[] convert(double lat, double lng) {
         // 기상청 투영 상수
         double RE = 6371.00877; // 지구 반경(km)
@@ -13,7 +25,7 @@ public class LatXLngY {
         double YO = 136; // 기준점 Y좌표(GRID)
 
         // 변환 로직 (LCC DFT)
-        double DEGRAD = Math.PI / 180.0;
+        double DEGRAD = Math.PI / 180.0; // 도(Degree)를 라디안(Radian)으로 변환하는 상수
         
         double re = RE / GRID;
         double slat1 = SLAT1 * DEGRAD;
