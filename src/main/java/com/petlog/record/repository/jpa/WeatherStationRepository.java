@@ -8,12 +8,17 @@ import org.springframework.stereotype.Repository;
 
 import java.util.Optional;
 
+/**
+ * [기상 관측소 위치 조회 리포지토리]
+ * 사용자의 위/경도 좌표와 가장 인접한 기상 관측소를 공간 연산을 통해 검색
+ */
 @Repository
 public interface WeatherStationRepository extends JpaRepository<WeatherStation, Integer> {
 
-    /**
-     * 특정 위경도에서 가장 가까운 관측소 하나를 반환합니다.
-     * ST_DistanceSphere: 구면 모델을 기준으로 미터 단위 거리를 계산하여 정렬합니다.
+     /**
+     * [근접 관측소 검색]
+     * ST_DistanceSphere를 사용하여 실제 지구 구면 모델 기준 미터(m) 단위로
+     * 가장 가까운 관측소 1곳을 반환 (SRID 4326 좌표계 기반)
      */
     @Query(value = """
         SELECT * FROM weather_stations s 
