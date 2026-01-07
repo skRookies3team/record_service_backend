@@ -53,6 +53,19 @@ public class DiaryStyleController {
     }
 
     /**
+     * [개별 다이어리 스타일 조회 API]
+     * 특정 다이어리에 적용된 스타일 설정을 조회
+     */
+    @Operation(summary = "개별 다이어리 스타일 조회", description = "특정 다이어리 ID에 대한 스타일 설정을 조회합니다.")
+    @GetMapping("/diary/{diaryId}")
+    public ResponseEntity<DiaryStyleResponse> getDiaryStyle(
+            @PathVariable Long diaryId
+    ) {
+        DiaryStyleResponse response = diaryStyleService.getDiaryStyle(diaryId);
+        return ResponseEntity.ok(response);
+    }
+
+    /**
      * [내 스타일 설정 조회 API]
      * 현재 로그인한 사용자의 기본 스타일 혹은 특정 펫에게 적용된 스타일을 조회
      * @param petId 특정 펫의 스타일을 조회하고 싶은 경우 포함 (Optional)

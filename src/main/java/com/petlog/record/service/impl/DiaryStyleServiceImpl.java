@@ -130,12 +130,21 @@ public class DiaryStyleServiceImpl implements DiaryStyleService {
      * 특정 일기(Diary)에 특화되어 설정된 스타일이 있는지 확인
      * @return 스타일 존재 시 DTO 반환, 없을 시 null 반환 (상위 설정 호출 유도)
      */
-    @Override
+//    @Override
+//    @Transactional(readOnly = true)
+//    public DiaryStyleResponse getDiaryStyle(Long diaryId) {
+//        DiaryStyle style = diaryStyleRepository.findByDiaryId(diaryId)
+//                .orElse(null);
+//
+//        return style != null ? DiaryStyleResponse.fromEntity(style) : null;
+//    }
+
     @Transactional(readOnly = true)
     public DiaryStyleResponse getDiaryStyle(Long diaryId) {
         DiaryStyle style = diaryStyleRepository.findByDiaryId(diaryId)
-                .orElse(null);
+                .orElse(null); // 없으면 null 반환하거나 예외 처리
 
-        return style != null ? DiaryStyleResponse.fromEntity(style) : null;
+        if (style == null) return null;
+        return DiaryStyleResponse.fromEntity(style); // DTO 변환
     }
 }

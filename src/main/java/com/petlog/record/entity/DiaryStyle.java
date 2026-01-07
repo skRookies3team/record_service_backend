@@ -73,6 +73,11 @@ public class DiaryStyle {
     @Builder.Default
     private String themeStyle = "basic";
 
+    // ✅ [NEW] 폰트 스타일 추가
+    @Column(name = "font_family", nullable = false, length = 50)
+    @Builder.Default
+    private String fontFamily = "Inter"; // 또는 "Noto Sans KR" 등 기본값 설정
+
     // 작성일
     @CreationTimestamp
     private LocalDateTime createdAt;
