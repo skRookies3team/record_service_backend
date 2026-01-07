@@ -95,8 +95,11 @@ public class DiaryStyleServiceImpl implements DiaryStyleService {
         if (request.getFontSize() != null) style.setFontSize(request.getFontSize());
         if (request.getSizeOption() != null) style.setSizeOption(request.getSizeOption());
         if (request.getBackgroundColor() != null) style.setBackgroundColor(request.getBackgroundColor());
-        if (request.getPreset() != null) style.setPreset(request.getPreset());
+        //if (request.getPreset() != null) style.setPreset(request.getPreset());
         if (request.getThemeStyle() != null) style.setThemeStyle(request.getThemeStyle());
+        if (request.getFontFamily() != null) style.setFontFamily(request.getFontFamily());
+
+        style.setPreset(request.getPreset() != null ? request.getPreset() : "default");
 
         return DiaryStyleResponse.fromEntity(style);
     }
