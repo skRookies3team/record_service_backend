@@ -124,7 +124,7 @@ public class RecapServiceImpl implements RecapService {
         Recap savedRecap = recapRepository.save(recap);
         log.info("[Recap] AI 리캡 저장 완료 - Recap ID: {}", savedRecap.getRecapId());
 
-        // ✅ [NEW] 코인 적립 (30 코인)
+        // ✅ 코인 적립 (30 코인)
         try {
             Map<String, Object> coinRequest = new HashMap<>();
             coinRequest.put("amount", 30L);
@@ -136,7 +136,7 @@ public class RecapServiceImpl implements RecapService {
             log.error("[Coin] 코인 적립 실패 (리캡은 정상 생성됨): {}", e.getMessage());
         }
 
-        // ✅ [추가] 리캡 생성 알림 전송
+        // ✅ 리캡 생성 알림 전송
         try {
             NotificationRequest notificationRequest = NotificationRequest.builder()
                     .type("RECAP")
@@ -166,7 +166,7 @@ public class RecapServiceImpl implements RecapService {
         log.info("[Recap] WAITING 리캡 예약 시작 - User: {}, Pet: {}", request.getUserId(), request.getPetId());
 
         // 예약 시점에는 분석할 일기가 없을 수 있으므로,
-        // 다이어리 테이블에서 해당 유저가 해당 펫의 일기를 한 번이라도 작성했는지 여부로 최소한의 검증을 수행할 수 있습니다.
+        // 다이어리 테이블에서 해당 유저가 해당 펫의 일기를 한 번이라도 작성했는지 여부로 최소한의 검증을 수행할 수 있음.
         boolean hasHistory = diaryRepository.existsByPetIdAndUserId(request.getPetId(), request.getUserId());
         if (!hasHistory) {
             throw new AccessDeniedException("해당 반려동물에 대한 기록 권한이 없거나 작성된 일기가 없습니다.");
