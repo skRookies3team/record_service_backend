@@ -83,7 +83,7 @@ public class RecapServiceImpl implements RecapService {
 
         Collections.shuffle(representativeImages);
         List<String> selectedImages = representativeImages.stream()
-                .limit(8)
+                .limit(30)
                 .collect(Collectors.toList());
 
         // AI 분석용 텍스트 추출
