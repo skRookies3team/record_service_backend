@@ -40,6 +40,10 @@ public class DiaryStyleRequest {
     @Schema(description = "테마 스타일 (basic, romantic, modern 등)", example = "modern")
     private String themeStyle;
 
+    // DiaryStyleRequest.java 안에 추가
+    @Schema(description = "폰트 스타일", example = "Jua")
+    private String fontFamily;
+
     /** [상속 계층] 특정 펫 전용 스타일일 경우의 펫 식별 ID (null이면 유저 공통 스타일) */
     @Schema(description = "스타일을 적용할 펫 ID (선택값: null일 경우 유저의 기본 스타일로 저장)", example = "1")
     private Long petId;
@@ -65,6 +69,8 @@ public class DiaryStyleRequest {
                 .backgroundColor(this.backgroundColor != null ? this.backgroundColor : "#FFFFFF")
                 .preset(this.preset != null ? this.preset : "default")
                 .themeStyle(this.themeStyle != null ? this.themeStyle : "basic")
+                // ✅ [NEW] 폰트 필드 추가 (기본값 설정)
+                .fontFamily(this.fontFamily != null ? this.fontFamily : "Inter")
                 .build();
     }
 }

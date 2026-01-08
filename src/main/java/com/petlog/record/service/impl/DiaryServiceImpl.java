@@ -57,7 +57,7 @@ public class DiaryServiceImpl implements DiaryService {
     private final DiaryVectorService diaryVectorService;
     private final ExternalApiService externalApiService;
     private final DiaryMediaService diaryMediaService;
-    private final LocationService locationService; // ✅ 위치 조회 서비스 주입 확인
+    private final LocationService locationService;
 
     /**
      * [AI 일기 미리보기 생성]
@@ -236,7 +236,7 @@ public class DiaryServiceImpl implements DiaryService {
         // 6. Diary 저장
         Diary savedDiary = diaryRepository.save(diary);
 
-        // 7. ✅ [NEW] 과거 날짜 + 위치 있음 → DB에 위치 저장
+        // 7. ✅ 과거 날짜 + 위치 있음 → DB에 위치 저장
         if (diaryDate.isBefore(LocalDate.now()) && targetLat != null && targetLng != null) {
             try {
                 locationService.saveLocation(request.getUserId(), diaryDate, targetLat, targetLng, finalLocationName);

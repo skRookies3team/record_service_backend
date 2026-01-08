@@ -30,13 +30,13 @@ public class WeatherServiceImpl implements WeatherService {
 
     private final WeatherStationRepository weatherStationRepository;
 
-    // 공공데이터포털에서 발급받은 'Decoding' 키를 설정파일(application.yml)에 넣는 것을 권장합니다.
+    // 공공데이터포털에서 발급받은 'Decoding' 키를 설정파일(application.yml)에 넣는 것을 권장
 
-    // ✅ application.yml의 계층 구조에 맞춰 경로를 수정했습니다.
+    // ✅ application.yml의 계층 구조에 맞춰 경로를 수정
     @Value("${external.weather.api-key}")
     private String serviceKey;
 
-    // ✅ application.yml의 계층 구조에 맞춰 경로를 수정했습니다.
+    // ✅ application.yml의 계층 구조에 맞춰 경로를 수정
     @Value("${external.weather.asos-api-key:${external.weather.api-key}}")
     private String asosServiceKey;
 
@@ -60,7 +60,7 @@ public class WeatherServiceImpl implements WeatherService {
 
             // ✅ 401 에러 방지를 위한 가장 안전한 URI 생성 방식
             // .build(true)를 사용하여 이미 인코딩된 상태로 취급하거나,
-            // 아래와 같이 쿼리 파라미터를 먼저 구성한 후 URI 객체로 변환합니다.
+            // 아래와 같이 쿼리 파라미터를 먼저 구성한 후 URI 객체로 변환
             URI uri = UriComponentsBuilder.fromHttpUrl(FCST_API_URL)
                     .queryParam("serviceKey", serviceKey)
                     .queryParam("pageNo", 1)
@@ -127,8 +127,8 @@ public class WeatherServiceImpl implements WeatherService {
         try {
             String dateStr = date.format(DateTimeFormatter.ofPattern("yyyyMMdd"));
 
-            // ✅ 공공데이터포털 401 에러의 90%는 이중 인코딩 문제입니다.
-            // 아래 방식은 serviceKey를 템플릿 변수로 처리하여 RestTemplate이 멋대로 인코딩하는 것을 방지합니다.
+            // ✅ 공공데이터포털 401 에러의 90%는 이중 인코딩 문제
+            // 아래 방식은 serviceKey를 템플릿 변수로 처리하여 RestTemplate이 멋대로 인코딩하는 것을 방지
             URI uri = UriComponentsBuilder.fromHttpUrl(ASOS_API_URL)
                     .queryParam("serviceKey", asosServiceKey)
                     .queryParam("pageNo", 1)

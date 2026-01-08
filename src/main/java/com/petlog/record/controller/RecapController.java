@@ -113,7 +113,7 @@ public class RecapController {
 
                 createdRecapIds.add(recapService.createAiRecap(genRequest));
             } catch (Exception e) {
-                // 특정 기간에 일기가 없는 펫은 건너뜁니다.
+                // 특정 기간에 일기가 없는 펫은 건너뜀
                 continue;
             }
         }

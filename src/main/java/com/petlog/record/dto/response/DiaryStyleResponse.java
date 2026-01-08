@@ -53,6 +53,10 @@ public class DiaryStyleResponse {
     @Schema(description = "테마 스타일 (basic, romantic, modern 등)", example = "modern")
     private String themeStyle;
 
+    // ✅ [NEW] 폰트 필드 추가
+    @Schema(description = "폰트 스타일(Jua, Noto Sans KR 등)", example = "Jua")
+    private String fontFamily;
+
     @Schema(description = "생성일시")
     private LocalDateTime createdAt;
 
@@ -76,6 +80,7 @@ public class DiaryStyleResponse {
                 .backgroundColor(style.getBackgroundColor())
                 .preset(style.getPreset())
                 .themeStyle(style.getThemeStyle())
+                .fontFamily(style.getFontFamily()) // ✅ [NEW] 여기서 Entity의 값을 DTO로 복사
                 .createdAt(style.getCreatedAt())
                 .updatedAt(style.getUpdatedAt())
                 .build();
