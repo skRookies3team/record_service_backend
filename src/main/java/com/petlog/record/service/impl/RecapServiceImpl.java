@@ -47,7 +47,7 @@ public class RecapServiceImpl implements RecapService {
      * [AI 리캡 생성 및 보상 처리 API]
      * 1. 데이터 집계: 대상 기간의 일기 목록 조회
      * 2. 보안 검증: 조회된 일기들의 소유권 확인
-     * 3. 이미지 선정: 대표 이미지 중 최대 8장을 랜덤 추출하여 리캡 앨범 구성
+     * 3. 이미지 선정: 대표 이미지 중 최대 20장을 랜덤 추출하여 리캡 앨범 구성
      * 4. AI 분석: LLM을 통한 제목/총평/하이라이트 추출
      * 5. 결과 저장: GENERATED 상태로 리캡 엔티티 저장
      * 6. 사후 처리: 작성 보상 코인 적립 및 생성 완료 알림 발송
@@ -83,7 +83,7 @@ public class RecapServiceImpl implements RecapService {
 
         Collections.shuffle(representativeImages);
         List<String> selectedImages = representativeImages.stream()
-                .limit(30)
+                .limit(20)
                 .collect(Collectors.toList());
 
         // AI 분석용 텍스트 추출
