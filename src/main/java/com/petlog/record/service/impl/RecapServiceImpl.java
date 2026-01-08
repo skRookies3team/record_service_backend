@@ -47,7 +47,7 @@ public class RecapServiceImpl implements RecapService {
      * [AI 리캡 생성 및 보상 처리 API]
      * 1. 데이터 집계: 대상 기간의 일기 목록 조회
      * 2. 보안 검증: 조회된 일기들의 소유권 확인
-     * 3. 이미지 선정: 대표 이미지 중 최대 8장을 랜덤 추출하여 리캡 앨범 구성
+     * 3. 이미지 선정: 대표 이미지 중 최대 20장을 랜덤 추출하여 리캡 앨범 구성
      * 4. AI 분석: LLM을 통한 제목/총평/하이라이트 추출
      * 5. 결과 저장: GENERATED 상태로 리캡 엔티티 저장
      * 6. 사후 처리: 작성 보상 코인 적립 및 생성 완료 알림 발송
@@ -83,7 +83,7 @@ public class RecapServiceImpl implements RecapService {
 
         Collections.shuffle(representativeImages);
         List<String> selectedImages = representativeImages.stream()
-                .limit(8)
+                .limit(20)
                 .collect(Collectors.toList());
 
         // AI 분석용 텍스트 추출
@@ -124,7 +124,7 @@ public class RecapServiceImpl implements RecapService {
         Recap savedRecap = recapRepository.save(recap);
         log.info("[Recap] AI 리캡 저장 완료 - Recap ID: {}", savedRecap.getRecapId());
 
-        // ✅ [NEW] 코인 적립 (30 코인)
+        // ✅ 코인 적립 (30 코인)
         try {
             Map<String, Object> coinRequest = new HashMap<>();
             coinRequest.put("amount", 30L);
@@ -136,7 +136,7 @@ public class RecapServiceImpl implements RecapService {
             log.error("[Coin] 코인 적립 실패 (리캡은 정상 생성됨): {}", e.getMessage());
         }
 
-        // ✅ [추가] 리캡 생성 알림 전송
+        // ✅ 리캡 생성 알림 전송
         try {
             NotificationRequest notificationRequest = NotificationRequest.builder()
                     .type("RECAP")
@@ -166,7 +166,7 @@ public class RecapServiceImpl implements RecapService {
         log.info("[Recap] WAITING 리캡 예약 시작 - User: {}, Pet: {}", request.getUserId(), request.getPetId());
 
         // 예약 시점에는 분석할 일기가 없을 수 있으므로,
-        // 다이어리 테이블에서 해당 유저가 해당 펫의 일기를 한 번이라도 작성했는지 여부로 최소한의 검증을 수행할 수 있습니다.
+        // 다이어리 테이블에서 해당 유저가 해당 펫의 일기를 한 번이라도 작성했는지 여부로 최소한의 검증을 수행할 수 있음.
         boolean hasHistory = diaryRepository.existsByPetIdAndUserId(request.getPetId(), request.getUserId());
         if (!hasHistory) {
             throw new AccessDeniedException("해당 반려동물에 대한 기록 권한이 없거나 작성된 일기가 없습니다.");
